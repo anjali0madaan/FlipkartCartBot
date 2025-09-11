@@ -1,0 +1,23 @@
+{
+  "search_settings": {
+    "product_name": "iPhone",
+    "max_price": 50000,
+    "min_price": 30000,
+    "search_query": "iPhone 15"
+  },
+  "automation_settings": {
+    "wait_time": 3,
+    "max_retries": 3,
+    "headless_mode": false,
+    "page_load_timeout": 30
+  },
+  "user_credentials": {
+    "email": "",
+    "password": ""
+  },
+  "filters": {
+    "brand": "Apple",
+    "sort_by": "price_low_to_high",
+    "condition": "new"
+  }
+}
