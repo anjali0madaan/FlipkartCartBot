@@ -167,6 +167,8 @@ class FlipkartAutomation:
             
             for selector in brand_filter_selectors:
                 try:
+                    if not self.wait:
+                        raise ValueError("WebDriverWait not initialized")
                     brand_checkbox = self.wait.until(EC.element_to_be_clickable((By.XPATH, selector)))
                     if not brand_checkbox.is_selected():
                         brand_checkbox.click()
@@ -203,10 +205,14 @@ class FlipkartAutomation:
             
             for selector in sort_selectors:
                 try:
+                    if not self.wait:
+                        raise ValueError("WebDriverWait not initialized")
                     sort_dropdown = self.wait.until(EC.element_to_be_clickable((By.XPATH, selector)))
                     sort_dropdown.click()
                     
                     # Select sort option
+                    if not self.wait:
+                        raise ValueError("WebDriverWait not initialized")
                     sort_option = self.wait.until(EC.element_to_be_clickable((By.XPATH, f"//div[contains(text(), '{sort_text}')]")))
                     sort_option.click()
                     
@@ -236,6 +242,8 @@ class FlipkartAutomation:
             ]
             
             try:
+                if not self.driver:
+                    raise ValueError("WebDriver not initialized")
                 min_price_input = self.driver.find_element(By.XPATH, price_input_selectors[0])
                 max_price_input = self.driver.find_element(By.XPATH, price_input_selectors[1])
                 
@@ -247,6 +255,8 @@ class FlipkartAutomation:
                     max_price_input.send_keys(str(max_price))
                     
                     # Apply filter
+                    if not self.driver:
+                        raise ValueError("WebDriver not initialized")
                     apply_button = self.driver.find_element(By.XPATH, "//button[contains(text(), 'Apply') or contains(@class, 'apply')]")
                     apply_button.click()
                     
