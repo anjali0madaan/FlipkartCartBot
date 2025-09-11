@@ -93,41 +93,53 @@ class FlipkartAutomation:
             if not self.driver or not self.wait:
                 raise ValueError("WebDriver not initialized")
                 
-            self.logger.info(f"Searching for: {search_query}")
+            # Check if we have a direct search URL
+            direct_url = self.config["search_settings"].get("direct_search_url")
             
-            # Find search box and enter search query
-            search_selectors = ["//input[@name='q']", "//input[@placeholder='Search for products, brands and more']", "//input[@class='_3704LK']"]
-            search_box = None
-            
-            for selector in search_selectors:
-                try:
-                    search_box = self.wait.until(EC.presence_of_element_located((By.XPATH, selector)))
-                    break
-                except TimeoutException:
-                    continue
-                    
-            if not search_box:
-                raise Exception("Could not find search box")
+            if direct_url:
+                self.logger.info(f"Using direct search URL for: {search_query}")
+                self.driver.get(direct_url)
                 
-            search_box.clear()
-            search_box.send_keys(search_query)
-            
-            # Click search button
-            search_button_selectors = ["//button[@type='submit']", "//button[@class='L0Z3Pu']", "//button[contains(@class, 'submit')]"]
-            
-            for selector in search_button_selectors:
-                try:
-                    search_button = self.wait.until(EC.element_to_be_clickable((By.XPATH, selector)))
-                    search_button.click()
-                    break
-                except TimeoutException:
-                    continue
-            
-            # Wait for results to load
-            self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[@data-id or contains(@class, '_13oc-S') or contains(@class, '_1AtVbE')]")))
-            
-            # Apply filters from configuration
-            self.apply_filters()
+                # Wait for results to load
+                self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+                time.sleep(3)  # Additional wait for dynamic content
+                
+            else:
+                self.logger.info(f"Searching for: {search_query}")
+                
+                # Find search box and enter search query
+                search_selectors = ["//input[@name='q']", "//input[@placeholder='Search for products, brands and more']", "//input[@class='_3704LK']"]
+                search_box = None
+                
+                for selector in search_selectors:
+                    try:
+                        search_box = self.wait.until(EC.presence_of_element_located((By.XPATH, selector)))
+                        break
+                    except TimeoutException:
+                        continue
+                        
+                if not search_box:
+                    raise Exception("Could not find search box")
+                    
+                search_box.clear()
+                search_box.send_keys(search_query)
+                
+                # Click search button
+                search_button_selectors = ["//button[@type='submit']", "//button[@class='L0Z3Pu']", "//button[contains(@class, 'submit')]"]
+                
+                for selector in search_button_selectors:
+                    try:
+                        search_button = self.wait.until(EC.element_to_be_clickable((By.XPATH, selector)))
+                        search_button.click()
+                        break
+                    except TimeoutException:
+                        continue
+                
+                # Wait for results to load
+                self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[@data-id or contains(@class, '_13oc-S') or contains(@class, '_1AtVbE')]")))
+                
+                # Apply filters from configuration
+                self.apply_filters()
             
             return self.extract_product_info()
             
