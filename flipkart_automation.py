@@ -276,22 +276,113 @@ class FlipkartAutomation:
             # Wait for product listings to load
             if not self.wait:
                 raise ValueError("WebDriverWait not initialized")
-            product_containers = self.wait.until(EC.presence_of_all_elements_located((By.XPATH, "//div[@data-id]")))
             
-            for container in product_containers[:10]:  # Limit to first 10 products
+            # Try multiple selectors for product containers
+            container_selectors = [
+                "//div[@data-id]",
+                "//div[contains(@class, '_1AtVbE')]",  # Common product container
+                "//div[contains(@class, '_13oc-S')]",  # Alternative container
+                "//div[contains(@class, 'col-7-12')]",  # Grid layout
+                "//div[contains(@class, '_1xHGtK')]",   # Product row
+                "//div[contains(@class, 'col-12-12')]//div[contains(@class, '_1AtVbE')]"  # Nested containers
+            ]
+            
+            product_containers = None
+            for selector in container_selectors:
                 try:
-                    # Extract product title
-                    title_element = container.find_element(By.XPATH, ".//div[@class='_4rR01T']")
-                    title = title_element.text
+                    product_containers = self.wait.until(EC.presence_of_all_elements_located((By.XPATH, selector)))
+                    if product_containers:
+                        self.logger.info(f"Found {len(product_containers)} product containers using selector: {selector}")
+                        break
+                except TimeoutException:
+                    continue
+            
+            if not product_containers:
+                self.logger.error("No product containers found with any selector")
+                return products
+            
+            for i, container in enumerate(product_containers[:10]):  # Limit to first 10 products
+                try:
+                    self.logger.info(f"Processing product container {i+1}")
                     
-                    # Extract price
-                    price_element = container.find_element(By.XPATH, ".//div[@class='_30jeq3 _1_WHN1']")
-                    price_text = price_element.text
-                    price = self.extract_price_from_text(price_text)
+                    # Extract product title - try multiple selectors
+                    title = None
+                    title_selectors = [
+                        ".//div[@class='_4rR01T']",  # Old selector
+                        ".//a[contains(@class, 'IRpwTa')]",  # Link title
+                        ".//div[contains(@class, '_4rR01T')]",  # Partial class match
+                        ".//a[contains(@class, '_1fQZEK')]",  # Product link
+                        ".//div[contains(@class, 'KzDlHZ')]",  # New title class
+                        ".//span[contains(@class, 'B_NuCI')]",  # Span title
+                        ".//h2//a",  # H2 link
+                        ".//div[contains(text(), 'iPhone') or contains(text(), 'Apple')]",  # Text content
+                        ".//a[@title]"  # Any link with title attribute
+                    ]
                     
-                    # Extract product link
-                    link_element = container.find_element(By.XPATH, ".//a[@class='_1fQZEK']")
-                    product_url = link_element.get_attribute('href')
+                    for title_selector in title_selectors:
+                        try:
+                            title_element = container.find_element(By.XPATH, title_selector)
+                            title = title_element.text or title_element.get_attribute('title')
+                            if title and title.strip():
+                                break
+                        except NoSuchElementException:
+                            continue
+                    
+                    if not title:
+                        self.logger.warning(f"Could not extract title for product {i+1}")
+                        continue
+                    
+                    # Extract price - try multiple selectors
+                    price = None
+                    price_selectors = [
+                        ".//div[@class='_30jeq3 _1_WHN1']",  # Old selector
+                        ".//div[contains(@class, '_30jeq3')]",  # Partial class match
+                        ".//div[contains(@class, '_1_WHN1')]",  # Alternative price class
+                        ".//span[contains(@class, '_30jeq3')]",  # Span price
+                        ".//div[contains(text(), '₹')]",  # Text containing rupee
+                        ".//span[contains(text(), '₹')]",  # Span containing rupee
+                        ".//div[contains(@class, 'price')]",  # Generic price class
+                        ".//div[text()[contains(., '₹')]]"  # Direct text with rupee
+                    ]
+                    
+                    for price_selector in price_selectors:
+                        try:
+                            price_element = container.find_element(By.XPATH, price_selector)
+                            price_text = price_element.text
+                            if price_text and '₹' in price_text:
+                                price = self.extract_price_from_text(price_text)
+                                break
+                        except (NoSuchElementException, ValueError):
+                            continue
+                    
+                    if not price:
+                        self.logger.warning(f"Could not extract price for product {i+1}: {title}")
+                        continue
+                    
+                    # Extract product link - try multiple selectors
+                    product_url = None
+                    link_selectors = [
+                        ".//a[@class='_1fQZEK']",  # Old selector
+                        ".//a[contains(@class, '_1fQZEK')]",  # Partial class match
+                        ".//a[contains(@class, 'IRpwTa')]",  # Alternative link class
+                        ".//a[@href]",  # Any link
+                        ".//a[contains(@href, '/p/')]"  # Product page link
+                    ]
+                    
+                    for link_selector in link_selectors:
+                        try:
+                            link_element = container.find_element(By.XPATH, link_selector)
+                            product_url = link_element.get_attribute('href')
+                            if product_url and ('flipkart.com' in product_url or product_url.startswith('/')):
+                                if product_url.startswith('/'):
+                                    product_url = 'https://www.flipkart.com' + product_url
+                                break
+                        except NoSuchElementException:
+                            continue
+                    
+                    if not product_url:
+                        self.logger.warning(f"Could not extract URL for product {i+1}: {title}")
+                        continue
                     
                     # Check if price meets criteria
                     min_price = self.config["search_settings"]["min_price"]
@@ -304,15 +395,20 @@ class FlipkartAutomation:
                             'url': product_url,
                             'container': container
                         })
-                        self.logger.info(f"Found product: {title} - ₹{price}")
+                        self.logger.info(f"Found qualifying product: {title} - ₹{price}")
+                    else:
+                        self.logger.info(f"Product price ₹{price} outside range ₹{min_price}-₹{max_price}: {title}")
                 
-                except (NoSuchElementException, ValueError) as e:
-                    # Skip products where we can't extract info
+                except Exception as e:
+                    self.logger.warning(f"Error processing product {i+1}: {str(e)}")
                     continue
                     
         except TimeoutException:
             self.logger.error("No product containers found")
+        except Exception as e:
+            self.logger.error(f"Error in extract_product_info: {str(e)}")
         
+        self.logger.info(f"Total products found matching criteria: {len(products)}")
         return products
     
     def close_login_popup(self):

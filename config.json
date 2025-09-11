@@ -1,8 +1,8 @@
 {
   "search_settings": {
     "product_name": "iPhone",
-    "max_price": 50000,
-    "min_price": 30000,
+    "max_price": 100000,
+    "min_price": 60000,
     "search_query": "iPhone 15"
   },
   "automation_settings": {
