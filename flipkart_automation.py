@@ -344,31 +344,18 @@ class FlipkartAutomation:
                         self.logger.warning(f"Could not extract title for product {i+1}")
                         continue
                     
-                    # Extract price - try multiple selectors
-                    price = None
-                    price_selectors = [
-                        ".//div[@class='_30jeq3 _1_WHN1']",  # Old selector
-                        ".//div[contains(@class, '_30jeq3')]",  # Partial class match
-                        ".//div[contains(@class, '_1_WHN1')]",  # Alternative price class
-                        ".//span[contains(@class, '_30jeq3')]",  # Span price
-                        ".//div[contains(text(), '₹')]",  # Text containing rupee
-                        ".//span[contains(text(), '₹')]",  # Span containing rupee
-                        ".//div[contains(@class, 'price')]",  # Generic price class
-                        ".//div[text()[contains(., '₹')]]"  # Direct text with rupee
-                    ]
+                    # Extract sale prices using new detection method
+                    current_price, original_price = self.detect_sale_prices(container)
                     
-                    for price_selector in price_selectors:
-                        try:
-                            price_element = container.find_element(By.XPATH, price_selector)
-                            price_text = price_element.text
-                            if price_text and '₹' in price_text:
-                                price = self.extract_price_from_text(price_text)
-                                break
-                        except (NoSuchElementException, ValueError):
-                            continue
-                    
-                    if not price:
+                    if not current_price:
                         self.logger.warning(f"Could not extract price for product {i+1}: {title}")
+                        continue
+                    
+                    # Check sale criteria
+                    meets_criteria, discount_percentage, sale_message = self.meets_sale_criteria(current_price, original_price)
+                    
+                    if not meets_criteria:
+                        self.logger.info(f"Product doesn't meet sale criteria: {title} - {sale_message}")
                         continue
                     
                     # Extract product link - try multiple selectors
@@ -400,16 +387,23 @@ class FlipkartAutomation:
                     min_price = self.config["search_settings"]["min_price"]
                     max_price = self.config["search_settings"]["max_price"]
                     
-                    if min_price <= price <= max_price:
-                        products.append({
+                    if min_price <= current_price <= max_price:
+                        product_info = {
                             'title': title,
-                            'price': price,
+                            'price': current_price,
+                            'original_price': original_price,
+                            'discount_percentage': discount_percentage,
                             'url': product_url,
                             'container': container
-                        })
-                        self.logger.info(f"Found qualifying product: {title} - ₹{price}")
+                        }
+                        products.append(product_info)
+                        
+                        if original_price and discount_percentage > 0:
+                            self.logger.info(f"Found qualifying sale product: {title} - ₹{current_price} (was ₹{original_price}, {discount_percentage:.1f}% off)")
+                        else:
+                            self.logger.info(f"Found qualifying product: {title} - ₹{current_price}")
                     else:
-                        self.logger.info(f"Product price ₹{price} outside range ₹{min_price}-₹{max_price}: {title}")
+                        self.logger.info(f"Product price ₹{current_price} outside range ₹{min_price}-₹{max_price}: {title}")
                 
                 except Exception as e:
                     self.logger.warning(f"Error processing product {i+1}: {str(e)}")
@@ -507,6 +501,94 @@ class FlipkartAutomation:
         if price_match:
             return float(price_match.group())
         raise ValueError(f"Could not extract price from: {price_text}")
+    
+    def detect_sale_prices(self, container):
+        """Detect original and sale prices for a product."""
+        current_price = None
+        original_price = None
+        
+        # Look for original/strikethrough price first (indicates a sale)
+        original_price_selectors = [
+            ".//div[contains(@style, 'text-decoration: line-through')]",
+            ".//span[contains(@style, 'text-decoration: line-through')]",
+            ".//div[contains(@class, 'strike')]",
+            ".//span[contains(@class, 'strike')]",
+            ".//div[contains(@class, '_3I9_wc') and contains(@class, '_2p6lqe')]",  # Flipkart strikethrough class
+            ".//span[contains(@class, '_3I9_wc')]",
+            ".//div[contains(@style, 'line-through')]",
+            ".//span[contains(@style, 'line-through')]"
+        ]
+        
+        # Extract original price (if on sale)
+        for selector in original_price_selectors:
+            try:
+                price_element = container.find_element(By.XPATH, selector)
+                price_text = price_element.text
+                if price_text and '₹' in price_text:
+                    original_price = self.extract_price_from_text(price_text)
+                    break
+            except (NoSuchElementException, ValueError):
+                continue
+        
+        # Use comprehensive price selectors (same as original method) for current price
+        price_selectors = [
+            ".//div[@class='_30jeq3 _1_WHN1']",  # Old selector
+            ".//div[contains(@class, '_30jeq3')]",  # Partial class match
+            ".//div[contains(@class, '_1_WHN1')]",  # Alternative price class
+            ".//span[contains(@class, '_30jeq3')]",  # Span price
+            ".//div[contains(text(), '₹')]",  # Text containing rupee
+            ".//span[contains(text(), '₹')]",  # Span containing rupee
+            ".//div[contains(@class, 'price')]",  # Generic price class
+            ".//div[text()[contains(., '₹')]]"  # Direct text with rupee
+        ]
+        
+        # Extract current price using comprehensive selectors
+        for selector in price_selectors:
+            try:
+                price_element = container.find_element(By.XPATH, selector)
+                price_text = price_element.text
+                if price_text and '₹' in price_text:
+                    # Skip if this is the strikethrough price we already found
+                    if original_price:
+                        potential_price = self.extract_price_from_text(price_text)
+                        if potential_price != original_price:
+                            current_price = potential_price
+                            break
+                    else:
+                        current_price = self.extract_price_from_text(price_text)
+                        break
+            except (NoSuchElementException, ValueError):
+                continue
+        
+        return current_price, original_price
+    
+    def calculate_discount_percentage(self, original_price: float, current_price: float) -> float:
+        """Calculate discount percentage."""
+        if original_price and current_price and original_price > current_price:
+            return ((original_price - current_price) / original_price) * 100
+        return 0.0
+    
+    def meets_sale_criteria(self, current_price: float, original_price: Optional[float] = None) -> tuple:
+        """Check if product meets sale criteria."""
+        sale_settings = self.config.get("sale_settings", {})
+        
+        if not sale_settings.get("enable_sale_detection", False):
+            return True, 0.0, "Sale detection disabled"
+        
+        if not original_price:
+            # No original price found, consider as regular price
+            if sale_settings.get("prefer_sale_items", False):
+                return False, 0.0, "No sale detected, prefer_sale_items enabled"
+            return True, 0.0, "No sale detected, but accepted"
+        
+        discount_percentage = self.calculate_discount_percentage(original_price, current_price)
+        min_discount = sale_settings.get("min_discount_percentage", 0)
+        max_discount = sale_settings.get("max_discount_percentage", 100)
+        
+        if min_discount <= discount_percentage <= max_discount:
+            return True, discount_percentage, f"Sale discount {discount_percentage:.1f}% within range"
+        else:
+            return False, discount_percentage, f"Sale discount {discount_percentage:.1f}% outside range {min_discount}-{max_discount}%"
     
     def add_to_cart(self, product: Dict) -> bool:
         """Add a product to cart with verification."""

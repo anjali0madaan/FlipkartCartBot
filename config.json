@@ -16,6 +16,12 @@
     "email": "",
     "password": ""
   },
+  "sale_settings": {
+    "enable_sale_detection": true,
+    "min_discount_percentage": 10,
+    "max_discount_percentage": 50,
+    "prefer_sale_items": true
+  },
   "filters": {
     "brand": "Apple",
     "sort_by": "price_low_to_high",
