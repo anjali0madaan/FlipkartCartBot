@@ -20,7 +20,7 @@
     "enable_sale_detection": true,
     "min_discount_percentage": 10,
     "max_discount_percentage": 50,
-    "prefer_sale_items": true
+    "prefer_sale_items": false
   },
   "filters": {
     "brand": "Apple",
