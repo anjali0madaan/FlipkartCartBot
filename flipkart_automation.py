@@ -516,9 +516,22 @@ class FlipkartAutomation:
                 # Find and click "Add to Cart" button - multiple selectors
                 add_to_cart_selectors = [
                     "//button[contains(text(), 'ADD TO CART')]",
-                    "//button[contains(@class, '_2KpZ6l') and contains(@class, '_2U9uOA')]",
                     "//button[contains(text(), 'Add to Cart')]",
-                    "//li[@class='col col-6-12']//button[contains(@class, '_2KpZ6l')]"
+                    "//button[contains(@class, '_2KpZ6l') and contains(@class, '_2U9uOA')]",
+                    "//li[@class='col col-6-12']//button[contains(@class, '_2KpZ6l')]",
+                    "//button[contains(@class, '_2KpZ6l')]",  # Generic button class
+                    "//button[contains(@class, '_2AkmmA')]",  # Alternative button class
+                    "//button[contains(@class, '_3Mjr7N')]",  # New button class
+                    "//button[contains(@class, '_1XmrsL')]",  # Updated button class
+                    "//button[contains(@class, '_16PBlm')]",  # Primary button class
+                    "//form//button[@type='button']",        # Form button
+                    "//div[contains(@class, 'col-6-12')]//button",  # Column button
+                    "//button[contains(text(), 'Go to Cart')]",     # Already in cart scenario
+                    "//span[contains(text(), 'ADD TO CART')]/parent::button",  # Span inside button
+                    "//div[contains(text(), 'ADD TO CART')]/parent::button",   # Div inside button
+                    "//button[@data-testid='add-to-cart']", # Test ID
+                    "//input[@value='ADD TO CART']",        # Input type button
+                    "//a[contains(text(), 'ADD TO CART')]"  # Link styled as button
                 ]
                 
                 add_to_cart_button = None
@@ -585,6 +598,32 @@ class FlipkartAutomation:
                         
             except Exception:
                 pass
+                
+            # Navigate to cart page to verify items
+            try:
+                self.driver.get("http://flipkart.com/viewcart?marketplace=FLIPKART")
+                time.sleep(2)
+                
+                # Check if cart has items
+                cart_item_selectors = [
+                    "//div[contains(@class, '_1AtVbE')]",  # Cart item container
+                    "//div[contains(@class, '_13oc-S')]",  # Alternative cart item
+                    "//div[contains(@class, 'cart-item')]",  # Generic cart item
+                    "//div[contains(text(), 'iPhone')]",   # iPhone in cart
+                    "//a[contains(@href, '/p/')]"         # Product links in cart
+                ]
+                
+                for selector in cart_item_selectors:
+                    try:
+                        cart_items = self.driver.find_elements(By.XPATH, selector)
+                        if cart_items:
+                            self.logger.info(f"Found {len(cart_items)} items in cart")
+                            return True
+                    except NoSuchElementException:
+                        continue
+                        
+            except Exception as e:
+                self.logger.warning(f"Could not verify cart via cart page: {str(e)}")
                 
             # Check cart count increment (if visible)
             try:
