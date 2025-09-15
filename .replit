@@ -17,15 +17,15 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Flipkart Automation"
+args = "Session Setup"
 
 [[workflows.workflow]]
-name = "Flipkart Automation"
+name = "Session Setup"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python run_automation.py --yes"
+args = "python run_automation.py --setup-session"
 
 [workflows.workflow.metadata]
 outputType = "vnc"
