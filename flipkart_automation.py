@@ -9,6 +9,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import re
+import os
+import tempfile
+from session_manager import SessionManager
 
 class FlipkartAutomation:
     def __init__(self, config_file: str = "config.json"):
@@ -16,6 +19,8 @@ class FlipkartAutomation:
         self.config = self.load_config(config_file)
         self.driver: Optional[webdriver.Chrome] = None
         self.wait: Optional[WebDriverWait] = None
+        self.session_manager = SessionManager()
+        self.user_profile_path: Optional[str] = None
         self.setup_logging()
         
     def load_config(self, config_file: str) -> Dict:
