@@ -11,16 +11,16 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import re
 import os
 import tempfile
-from session_manager import SessionManager
+from session_persistence import FlipkartSessionManager
 
 class FlipkartAutomation:
-    def __init__(self, config_file: str = "config.json"):
+    def __init__(self, config_file: str = "config.json", use_session: Optional[str] = None):
         """Initialize the Flipkart automation with configuration."""
         self.config = self.load_config(config_file)
         self.driver: Optional[webdriver.Chrome] = None
         self.wait: Optional[WebDriverWait] = None
-        self.session_manager = SessionManager()
-        self.user_profile_path: Optional[str] = None
+        self.session_manager = FlipkartSessionManager()
+        self.use_session = use_session
         self.setup_logging()
         
     def load_config(self, config_file: str) -> Dict:
@@ -46,7 +46,34 @@ class FlipkartAutomation:
         self.logger = logging.getLogger(__name__)
     
     def setup_driver(self) -> webdriver.Chrome:
-        """Setup Chrome WebDriver with appropriate options."""
+        """Setup Chrome WebDriver with appropriate options and session persistence."""
+        
+        # If using session, try to create driver with saved profile
+        if self.use_session:
+            driver = self.session_manager.create_driver_with_session(self.use_session)
+            if driver:
+                # Apply headless mode if configured
+                if self.config["automation_settings"]["headless_mode"]:
+                    driver.quit()
+                    # Recreate with headless mode
+                    profile_path = self.session_manager.get_session_profile(self.use_session)
+                    chrome_options = Options()
+                    if profile_path:
+                        chrome_options.add_argument(f"--user-data-dir={profile_path}")
+                    chrome_options.add_argument("--headless")
+                    chrome_options.add_argument("--no-sandbox")
+                    chrome_options.add_argument("--disable-dev-shm-usage")
+                    chrome_options.add_argument("--disable-gpu")
+                    chrome_options.add_argument("--window-size=1920,1080")
+                    driver = webdriver.Chrome(options=chrome_options)
+                
+                self.driver = driver
+                self.driver.set_page_load_timeout(self.config["automation_settings"]["page_load_timeout"])
+                self.wait = WebDriverWait(self.driver, self.config["automation_settings"]["wait_time"])
+                self.logger.info("Chrome WebDriver initialized with session persistence")
+                return self.driver
+        
+        # Standard driver setup without session
         chrome_options = Options()
         
         # Add options for better automation

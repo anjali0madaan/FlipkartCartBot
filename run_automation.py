@@ -9,9 +9,10 @@ import json
 import argparse
 import os
 from flipkart_automation import FlipkartAutomation
+from session_persistence import FlipkartSessionManager
 
 def main():
-    parser = argparse.ArgumentParser(description='Flipkart iPhone Automation Tool')
+    parser = argparse.ArgumentParser(description='Flipkart iPhone Automation Tool with Session Persistence')
     parser.add_argument('--yes', '-y', action='store_true', 
                        help='Skip confirmation prompt and run automation')
     parser.add_argument('--config', '-c', default='config.json',
@@ -19,7 +20,56 @@ def main():
     parser.add_argument('--headless', action='store_true',
                        help='Run in headless mode (override config)')
     
+    # Session management commands
+    parser.add_argument('--setup-session', action='store_true',
+                       help='Setup a new persistent login session')
+    parser.add_argument('--use-session', type=str,
+                       help='Use existing session (email/mobile identifier)')
+    parser.add_argument('--list-sessions', action='store_true',
+                       help='List all available sessions')
+    parser.add_argument('--delete-session', type=str,
+                       help='Delete a specific session (email/mobile identifier)')
+    
     args = parser.parse_args()
+    
+    # Handle session management commands first
+    if args.setup_session or args.list_sessions or args.delete_session:
+        session_manager = FlipkartSessionManager()
+        
+        if args.setup_session:
+            print("🔐 Setting up new Flipkart login session...")
+            user_id = session_manager.setup_session_login()
+            if user_id:
+                print(f"\n✅ Session setup completed for {user_id}")
+                print("You can now use this session with: --use-session " + user_id)
+            else:
+                print("\n❌ Session setup failed")
+            return
+        
+        if args.list_sessions:
+            sessions = session_manager.list_available_sessions()
+            if sessions:
+                print("\n📋 Available Sessions:")
+                print("-" * 60)
+                for session in sessions:
+                    status = "✅ Valid" if session['valid'] else "❌ Invalid"
+                    print(f"User: {session['user']}")
+                    print(f"Created: {session['created']}")
+                    print(f"Last Used: {session['last_used']}")
+                    print(f"Status: {status}")
+                    print("-" * 60)
+            else:
+                print("📋 No saved sessions found")
+                print("Use --setup-session to create a new session")
+            return
+        
+        if args.delete_session:
+            success = session_manager.delete_session(args.delete_session)
+            if success:
+                print(f"✅ Session deleted for {args.delete_session}")
+            else:
+                print(f"❌ Session not found or failed to delete: {args.delete_session}")
+            return
     
     print("🛍️ Flipkart iPhone Automation Tool")
     print("=" * 50)
@@ -56,8 +106,13 @@ def main():
         print("Note: This automation should be used responsibly and in compliance with website terms of service.")
         print()
         
-        # Run automation
-        automation = FlipkartAutomation(args.config)
+        # Run automation with session if specified
+        if args.use_session:
+            print(f"🔐 Using session: {args.use_session}")
+            automation = FlipkartAutomation(args.config, use_session=args.use_session)
+        else:
+            automation = FlipkartAutomation(args.config)
+            
         success = automation.run_automation()
         
         if success:
