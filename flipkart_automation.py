@@ -45,52 +45,52 @@ class FlipkartAutomation:
         )
         self.logger = logging.getLogger(__name__)
     
-    def setup_driver(self) -> webdriver.Chrome:
-        """Setup Chrome WebDriver with appropriate options and session persistence."""
-        
-        # If using session, try to create driver with saved profile
-        if self.use_session:
-            driver = self.session_manager.create_driver_with_session(self.use_session)
-            if driver:
-                # Apply headless mode if configured
-                if self.config["automation_settings"]["headless_mode"]:
-                    driver.quit()
-                    # Recreate with headless mode
-                    profile_path = self.session_manager.get_session_profile(self.use_session)
-                    chrome_options = Options()
-                    if profile_path:
-                        chrome_options.add_argument(f"--user-data-dir={profile_path}")
-                    chrome_options.add_argument("--headless")
-                    chrome_options.add_argument("--no-sandbox")
-                    chrome_options.add_argument("--disable-dev-shm-usage")
-                    chrome_options.add_argument("--disable-gpu")
-                    chrome_options.add_argument("--window-size=1920,1080")
-                    driver = webdriver.Chrome(options=chrome_options)
-                
-                self.driver = driver
-                self.driver.set_page_load_timeout(self.config["automation_settings"]["page_load_timeout"])
-                self.wait = WebDriverWait(self.driver, self.config["automation_settings"]["wait_time"])
-                self.logger.info("Chrome WebDriver initialized with session persistence")
-                return self.driver
-        
-        # Standard driver setup without session
+    def _build_chrome_options(self, profile_path: Optional[str] = None) -> Options:
+        """Build Chrome options with consistent settings."""
         chrome_options = Options()
         
-        # Add options for better automation
+        # Add session profile if provided
+        if profile_path:
+            chrome_options.add_argument(f"--user-data-dir={profile_path}")
+        
+        # Standard options for automation
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--window-size=1920,1080")
         chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
         
+        # Use modern headless mode for better compatibility
         if self.config["automation_settings"]["headless_mode"]:
-            chrome_options.add_argument("--headless")
+            chrome_options.add_argument("--headless=new")
+            
+        return chrome_options
+    
+    def setup_driver(self) -> webdriver.Chrome:
+        """Setup Chrome WebDriver with appropriate options and session persistence."""
+        profile_path = None
+        
+        # Get session profile if using session
+        if self.use_session:
+            profile_path = self.session_manager.get_session_profile(self.use_session)
+            if profile_path:
+                self.logger.info(f"Using saved session profile: {profile_path}")
+            else:
+                self.logger.warning(f"No valid session found for {self.use_session}, running without session")
+        
+        # Build consistent Chrome options
+        chrome_options = self._build_chrome_options(profile_path)
         
         try:
             self.driver = webdriver.Chrome(options=chrome_options)
             self.driver.set_page_load_timeout(self.config["automation_settings"]["page_load_timeout"])
             self.wait = WebDriverWait(self.driver, self.config["automation_settings"]["wait_time"])
-            self.logger.info("Chrome WebDriver initialized successfully")
+            
+            if self.use_session and profile_path:
+                self.logger.info("Chrome WebDriver initialized with session persistence")
+            else:
+                self.logger.info("Chrome WebDriver initialized successfully")
+                
             return self.driver
         except Exception as e:
             self.logger.error(f"Failed to initialize WebDriver: {str(e)}")

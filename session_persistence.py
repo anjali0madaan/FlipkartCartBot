@@ -63,7 +63,11 @@ class FlipkartSessionManager:
         print("🔐 FLIPKART LOGIN SETUP FOR SESSION PERSISTENCE")
         print("="*70)
         print("This will create a persistent login session for future automation runs.")
-        print("You'll complete the login process through the browser window.\n")
+        print("You'll complete the login process through the browser window.")
+        print("\n⚠️  SECURITY NOTE:")
+        print("   Session data contains sensitive authentication information")
+        print("   and will be stored locally in flipkart_profiles/ directory.")
+        print("   Keep this data secure and don't share it with others.\n")
         
         # Get user identifier
         user_identifier = self.get_user_input(
