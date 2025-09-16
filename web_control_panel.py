@@ -246,7 +246,8 @@ control_panel = WebControlPanel()
 @app.route('/')
 def index():
     """Main control panel interface."""
-    return render_template('index.html')
+    timestamp = int(time.time())
+    return render_template('index.html', timestamp=timestamp)
 
 @app.route('/api/sessions', methods=['GET'])
 def get_sessions():
