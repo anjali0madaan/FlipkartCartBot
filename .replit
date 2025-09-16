@@ -23,6 +23,14 @@ args = "Session Setup"
 task = "workflow.run"
 args = "Flipkart Automation"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Session 1 - Mobile"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Session 2 - Email"
+
 [[workflows.workflow]]
 name = "Session Setup"
 author = "agent"
@@ -44,3 +52,25 @@ outputType = "console"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python run_automation.py --use-session rasikmanjula2@gmail.com"
+
+[[workflows.workflow]]
+name = "Session 1 - Mobile"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python run_automation.py --use-session 8950551041"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Session 2 - Email"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python run_automation.py --use-session rasikmanjula2@gmail.com"
+
+[workflows.workflow.metadata]
+outputType = "console"
