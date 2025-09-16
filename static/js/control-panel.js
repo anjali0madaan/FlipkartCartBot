@@ -859,14 +859,14 @@ class FlipkartControlPanel {
             // Show manual login instructions
             this.showManualLoginInstructions();
             
-            this.updateProgress(80, 'Ready for manual login');
-            this.updateSessionStatus('Session created - Complete login in VNC tab', 'success');
-            document.getElementById('vnc-status').innerHTML = 'Session Status: <span class="text-success">Created</span>';
+            this.updateProgress(80, 'Chrome launched in VNC');
+            this.updateSessionStatus('Chrome auto-launched - Complete login in VNC tab', 'success');
+            document.getElementById('vnc-status').innerHTML = 'Chrome Status: <span class="text-success">Launched in VNC</span>';
             
             // Enable finalize button immediately
             setTimeout(() => {
                 document.getElementById('finalize-session').disabled = false;
-                this.updateProgress(100, 'Session ready - Login in VNC tab');
+                this.updateProgress(100, 'Ready for login completion');
             }, 1000);
             
         } catch (error) {
@@ -883,42 +883,50 @@ class FlipkartControlPanel {
             <div class="h-100 d-flex align-items-center justify-content-center">
                 <div class="text-center p-5">
                     <div class="mb-4">
-                        <i class="fas fa-desktop fa-4x text-success mb-3"></i>
-                        <h3>Session Created Successfully!</h3>
+                        <i class="fas fa-rocket fa-4x text-success mb-3"></i>
+                        <h3>Chrome Auto-Launched in VNC!</h3>
                         <p class="text-muted">Session for: <strong>${userIdentifier}</strong></p>
                     </div>
                     
                     <div class="card border-success mb-4">
                         <div class="card-body">
                             <h5 class="card-title text-success">
-                                <i class="fas fa-tv me-2"></i>
-                                Complete Login in VNC Tab
+                                <i class="fas fa-chrome me-2"></i>
+                                Chrome is Ready for Login
                             </h5>
-                            <p class="card-text">Go to the <strong>VNC tab</strong> in your Replit workspace to complete your Flipkart login</p>
-                            <div class="alert alert-warning small mt-3">
-                                <i class="fas fa-info-circle me-2"></i>
+                            <p class="card-text">Chrome has automatically opened in the <strong>VNC tab</strong> with the Flipkart login page loaded</p>
+                            <div class="alert alert-info small mt-3">
+                                <i class="fas fa-lightbulb me-2"></i>
                                 The VNC tab provides a desktop environment where you can use Chrome to login to Flipkart
                             </div>
                         </div>
                     </div>
                     
+                    <div class="alert alert-success text-start">
+                        <h6><i class="fas fa-check-circle me-2"></i>What happened automatically:</h6>
+                        <ul class="mb-2">
+                            <li><strong>Profile directory created:</strong> <code>flipkart_profiles/profile_${this.currentSessionId}</code></li>
+                            <li><strong>Chrome launched in VNC</strong> with your specific profile</li>
+                            <li><strong>Flipkart login page opened</strong> automatically</li>
+                        </ul>
+                    </div>
+                    
                     <div class="alert alert-info text-start">
-                        <h6><i class="fas fa-list-ol me-2"></i>Steps to complete:</h6>
+                        <h6><i class="fas fa-list-ol me-2"></i>Complete these simple steps:</h6>
                         <ol class="mb-0">
-                            <li><strong>Click the "VNC" tab</strong> in your Replit workspace</li>
-                            <li><strong>Open Chrome</strong> in the VNC desktop</li>
-                            <li><strong>Go to www.flipkart.com</strong></li>
-                            <li><strong>Login with your credentials:</strong> <code>${userIdentifier}</code></li>
+                            <li><strong>Switch to the "VNC" tab</strong> in your Replit workspace</li>
+                            <li><strong>You'll see Chrome is already open</strong> with Flipkart login page</li>
+                            <li><strong>Enter your credentials:</strong> <code>${userIdentifier}</code></li>
                             <li><strong>Complete OTP verification</strong></li>
                             <li><strong>Return here</strong> and click "Finalize Session" below</li>
                         </ol>
                     </div>
                     
                     <div class="mt-4">
-                        <p class="text-muted small mb-3">
-                            <i class="fas fa-clock me-1"></i>
-                            Take your time - the session will wait for you to complete the login
-                        </p>
+                        <div class="alert alert-warning small">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Important:</strong> Make sure to complete the entire login process including OTP verification before finalizing the session.
+                        </div>
                     </div>
                 </div>
             </div>

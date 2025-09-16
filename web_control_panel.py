@@ -11,6 +11,8 @@ import os
 import time
 import logging
 import subprocess
+import sqlite3
+import glob
 from datetime import datetime
 from session_persistence import FlipkartSessionManager
 import threading
@@ -169,6 +171,74 @@ class WebControlPanel:
         except Exception as e:
             self.logger.error(f"Error getting sessions: {e}")
             return []
+
+def validate_flipkart_login(profile_dir: str, session_id: str) -> bool:
+    """
+    Validate if user has successfully logged into Flipkart by checking cookies in profile directory.
+    Returns True if valid Flipkart login cookies are found.
+    """
+    try:
+        # Look for Chrome cookies database in the profile directory
+        cookies_db_path = os.path.join(profile_dir, "Default", "Cookies")
+        
+        if not os.path.exists(cookies_db_path):
+            print(f"Cookies database not found at: {cookies_db_path}")
+            return False
+        
+        # Connect to Chrome's cookies database
+        conn = sqlite3.connect(cookies_db_path)
+        cursor = conn.cursor()
+        
+        # Check for Flipkart login-related cookies
+        login_cookies = [
+            'at',           # auth token
+            'uc',           # user context
+            'userUdid',     # user unique device ID
+            'SN',           # session number
+            'T',            # token
+        ]
+        
+        flipkart_cookies_found = []
+        
+        for cookie_name in login_cookies:
+            cursor.execute("""
+                SELECT name, value, host_key 
+                FROM cookies 
+                WHERE host_key LIKE '%flipkart.com%' 
+                AND name = ? 
+                AND length(value) > 0
+            """, (cookie_name,))
+            
+            results = cursor.fetchall()
+            if results:
+                flipkart_cookies_found.extend(results)
+                print(f"Found {cookie_name} cookie for Flipkart")
+        
+        # Also check for any cookies from flipkart.com domain
+        cursor.execute("""
+            SELECT COUNT(*) 
+            FROM cookies 
+            WHERE host_key LIKE '%flipkart.com%'
+            AND length(value) > 0
+        """)
+        
+        flipkart_cookie_count = cursor.fetchone()[0]
+        conn.close()
+        
+        # Consider login valid if we have login cookies OR sufficient flipkart cookies
+        is_valid = len(flipkart_cookies_found) >= 2 or flipkart_cookie_count >= 5
+        
+        print(f"Login validation for session {session_id}:")
+        print(f"  - Login cookies found: {len(flipkart_cookies_found)}")
+        print(f"  - Total Flipkart cookies: {flipkart_cookie_count}")
+        print(f"  - Validation result: {'VALID' if is_valid else 'INVALID'}")
+        
+        return is_valid
+        
+    except Exception as e:
+        print(f"Error validating login for session {session_id}: {e}")
+        return False
+
 
 def sequential_worker():
     """Worker function that processes sessions sequentially."""
@@ -798,7 +868,7 @@ def create_session_background(session_id: str, user_identifier: str):
         control_panel.logger.info(f"Starting background session creation for {session_id}")
         
         # Update status
-        session_status[session_id] = 'awaiting_login'
+        session_status[session_id] = 'creating_profile'
         
         # Initialize log queue for this session creation
         if session_id not in session_logs:
@@ -811,9 +881,77 @@ def create_session_background(session_id: str, user_identifier: str):
             'session_id': session_id
         })
         
-        # Wait for user to complete login in VNC
-        # This will be handled by the frontend monitoring
-        control_panel.logger.info(f"Session {session_id} ready for VNC login")
+        # Create profile directory for this session
+        profile_dir = os.path.join(control_panel.session_manager.base_profile_dir, f"profile_{session_id}")
+        os.makedirs(profile_dir, exist_ok=True)
+        
+        session_logs[session_id].put({
+            'timestamp': datetime.now().isoformat(),
+            'message': f'Profile directory created: {profile_dir}',
+            'session_id': session_id
+        })
+        
+        # Update status
+        session_status[session_id] = 'launching_chrome'
+        
+        # Launch Chrome in VNC desktop with the specific profile directory
+        try:
+            # Build Chrome command with profile directory
+            chrome_cmd = [
+                'chromium-browser',
+                f'--user-data-dir={profile_dir}',
+                '--no-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--window-size=1920,1080',
+                '--start-maximized',
+                'https://www.flipkart.com/account/login'
+            ]
+            
+            # Set environment to use VNC display
+            env = os.environ.copy()
+            env['DISPLAY'] = ':0'
+            
+            session_logs[session_id].put({
+                'timestamp': datetime.now().isoformat(),
+                'message': f'Launching Chrome in VNC for profile {session_id}...',
+                'session_id': session_id
+            })
+            
+            # Launch Chrome in VNC desktop
+            chrome_process = subprocess.Popen(
+                chrome_cmd,
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                start_new_session=True
+            )
+            
+            session_logs[session_id].put({
+                'timestamp': datetime.now().isoformat(),
+                'message': f'Chrome launched successfully in VNC (PID: {chrome_process.pid})',
+                'session_id': session_id
+            })
+            
+            session_logs[session_id].put({
+                'timestamp': datetime.now().isoformat(),
+                'message': 'Chrome is now running in VNC with Flipkart login page. Complete your login.',
+                'session_id': session_id
+            })
+            
+            # Update status to awaiting login
+            session_status[session_id] = 'awaiting_login'
+            
+            control_panel.logger.info(f"Chrome launched for session {session_id} in VNC desktop")
+            
+        except Exception as chrome_error:
+            session_logs[session_id].put({
+                'timestamp': datetime.now().isoformat(),
+                'message': f'Failed to launch Chrome: {str(chrome_error)}',
+                'session_id': session_id
+            })
+            session_status[session_id] = 'error'
+            raise chrome_error
         
     except Exception as e:
         control_panel.logger.error(f"Error in background session creation: {e}")
@@ -847,10 +985,44 @@ def finalize_session_creation(session_id):
         
         # Use session manager to finalize the session
         try:
+            # Validate login by checking cookies in profile directory
+            profile_dir = os.path.join(control_panel.session_manager.base_profile_dir, f"profile_{session_id}")
+            
+            if session_id in session_logs:
+                session_logs[session_id].put({
+                    'timestamp': datetime.now().isoformat(),
+                    'message': f'Validating login in profile directory: {profile_dir}',
+                    'session_id': session_id
+                })
+            
+            # Check if profile directory exists
+            if not os.path.exists(profile_dir):
+                session_status[session_id] = 'error'
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Profile directory not found: {profile_dir}. Please complete login in VNC.'
+                }), 400
+            
+            # Validate login by checking for Flipkart cookies
+            login_valid = validate_flipkart_login(profile_dir, session_id)
+            
+            if not login_valid:
+                session_status[session_id] = 'error'
+                if session_id in session_logs:
+                    session_logs[session_id].put({
+                        'timestamp': datetime.now().isoformat(),
+                        'message': 'Login validation failed - no valid Flipkart cookies found',
+                        'session_id': session_id
+                    })
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Login validation failed. Please complete login in VNC and try again.'
+                }), 400
+            
             # Create the session using the session manager's logic
             session_manager = control_panel.session_manager
             
-            # Update session records
+            # Update session records with proper profile path
             sessions = session_manager.load_sessions()
             sessions[user_identifier] = {
                 'user': user_identifier,
@@ -858,6 +1030,7 @@ def finalize_session_creation(session_id):
                 'last_used': datetime.now().isoformat(),
                 'valid': True,
                 'profile_name': f"profile_{session_id}",
+                'profile_path': profile_dir,
                 'session_id': session_id
             }
             session_manager.save_sessions(sessions)
@@ -869,13 +1042,13 @@ def finalize_session_creation(session_id):
             if session_id in session_logs:
                 session_logs[session_id].put({
                     'timestamp': datetime.now().isoformat(),
-                    'message': f'Session {session_id} created successfully',
+                    'message': f'Session {session_id} created and validated successfully',
                     'session_id': session_id
                 })
             
             return jsonify({
                 'status': 'success',
-                'message': f'Session {session_id} created successfully',
+                'message': f'Session {session_id} created and validated successfully',
                 'session_id': session_id,
                 'user_identifier': user_identifier
             })
