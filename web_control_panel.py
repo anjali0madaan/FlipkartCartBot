@@ -696,6 +696,202 @@ def monitor_session_logs(session_id: str, process: subprocess.Popen):
                 'session_id': session_id
             })
 
+@app.route('/api/vnc/auth', methods=['GET'])
+def get_vnc_auth():
+    """Get VNC authentication credentials for embedded noVNC."""
+    try:
+        # Get VNC password from environment
+        vnc_password = os.environ.get('VNC_PASSWORD')
+        if not vnc_password:
+            return jsonify({
+                'status': 'error',
+                'message': 'VNC password not configured'
+            }), 500
+        
+        # Get the current host from request
+        host = request.host.split(':')[0]
+        
+        response = jsonify({
+            'status': 'success',
+            'credentials': {
+                'username': 'runner',
+                'password': vnc_password,
+                'host': host,
+                'port': 5900,
+                'websocket_port': 6080
+            },
+            'connection_info': {
+                'vnc_url': f'ws://{host}:6080/websockify',
+                'web_url': f'http://{host}:6080/vnc.html'
+            }
+        })
+        response.headers['Content-Type'] = 'application/json'
+        return response
+    
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to get VNC credentials: {str(e)}'
+        }), 500
+
+@app.route('/api/sessions/create', methods=['POST'])
+def create_new_session():
+    """Create a new Flipkart session with guided setup."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'status': 'error',
+                'message': 'No data provided'
+            }), 400
+        
+        user_identifier = data.get('user_identifier', '').strip()
+        if not user_identifier:
+            return jsonify({
+                'status': 'error',
+                'message': 'User identifier (email/mobile) is required'
+            }), 400
+        
+        # Check if session already exists
+        existing_sessions = control_panel.get_all_sessions()
+        for session in existing_sessions:
+            if session.get('user') == user_identifier:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Session for {user_identifier} already exists'
+                }), 400
+        
+        # Create session identifier
+        safe_identifier = user_identifier.replace('@', '_').replace('+', '_').replace(' ', '_')
+        session_id = safe_identifier
+        
+        # Initialize session status
+        session_status[session_id] = 'creating'
+        
+        # Start session creation process in background
+        creation_thread = threading.Thread(
+            target=create_session_background,
+            args=(session_id, user_identifier),
+            daemon=True
+        )
+        creation_thread.start()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Session creation started',
+            'session_id': session_id,
+            'user_identifier': user_identifier,
+            'next_step': 'vnc_login'
+        })
+    
+    except Exception as e:
+        control_panel.logger.error(f"Error creating session: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to create session: {str(e)}'
+        }), 500
+
+def create_session_background(session_id: str, user_identifier: str):
+    """Background task to handle session creation."""
+    try:
+        control_panel.logger.info(f"Starting background session creation for {session_id}")
+        
+        # Update status
+        session_status[session_id] = 'awaiting_login'
+        
+        # Initialize log queue for this session creation
+        if session_id not in session_logs:
+            session_logs[session_id] = queue.Queue()
+        
+        # Add creation log
+        session_logs[session_id].put({
+            'timestamp': datetime.now().isoformat(),
+            'message': f'Session creation started for {user_identifier}',
+            'session_id': session_id
+        })
+        
+        # Wait for user to complete login in VNC
+        # This will be handled by the frontend monitoring
+        control_panel.logger.info(f"Session {session_id} ready for VNC login")
+        
+    except Exception as e:
+        control_panel.logger.error(f"Error in background session creation: {e}")
+        session_status[session_id] = 'error'
+        if session_id in session_logs:
+            session_logs[session_id].put({
+                'timestamp': datetime.now().isoformat(),
+                'message': f'Error creating session: {str(e)}',
+                'session_id': session_id
+            })
+
+@app.route('/api/sessions/<session_id>/finalize', methods=['POST'])
+def finalize_session_creation(session_id):
+    """Finalize session creation after VNC login completion."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'status': 'error',
+                'message': 'No data provided'
+            }), 400
+        
+        user_identifier = data.get('user_identifier', '')
+        login_completed = data.get('login_completed', False)
+        
+        if not login_completed:
+            return jsonify({
+                'status': 'error',
+                'message': 'Login not completed'
+            }), 400
+        
+        # Use session manager to finalize the session
+        try:
+            # Create the session using the session manager's logic
+            session_manager = control_panel.session_manager
+            
+            # Update session records
+            sessions = session_manager.load_sessions()
+            sessions[user_identifier] = {
+                'user': user_identifier,
+                'created': datetime.now().isoformat(),
+                'last_used': datetime.now().isoformat(),
+                'valid': True,
+                'profile_name': f"profile_{session_id}",
+                'session_id': session_id
+            }
+            session_manager.save_sessions(sessions)
+            
+            # Update status
+            session_status[session_id] = 'ready'
+            
+            # Add success log
+            if session_id in session_logs:
+                session_logs[session_id].put({
+                    'timestamp': datetime.now().isoformat(),
+                    'message': f'Session {session_id} created successfully',
+                    'session_id': session_id
+                })
+            
+            return jsonify({
+                'status': 'success',
+                'message': f'Session {session_id} created successfully',
+                'session_id': session_id,
+                'user_identifier': user_identifier
+            })
+        
+        except Exception as e:
+            session_status[session_id] = 'error'
+            return jsonify({
+                'status': 'error',
+                'message': f'Failed to finalize session: {str(e)}'
+            }), 500
+    
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to finalize session creation: {str(e)}'
+        }), 500
+
 # Health check endpoint
 @app.route('/api/health')
 def health_check():

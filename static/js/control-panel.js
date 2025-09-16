@@ -71,6 +71,27 @@ class FlipkartControlPanel {
             this.clearLogs();
         });
         
+        // Session Creation Controls
+        document.getElementById('add-session-btn')?.addEventListener('click', () => {
+            this.openSessionCreationModal();
+        });
+        
+        document.getElementById('start-session-creation')?.addEventListener('click', () => {
+            this.startSessionCreation();
+        });
+        
+        document.getElementById('finalize-session')?.addEventListener('click', () => {
+            this.finalizeSessionCreation();
+        });
+        
+        document.getElementById('vnc-reconnect')?.addEventListener('click', () => {
+            this.reconnectVNC();
+        });
+        
+        document.getElementById('vnc-fullscreen')?.addEventListener('click', () => {
+            this.toggleVNCFullscreen();
+        });
+        
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey) {
@@ -737,6 +758,303 @@ class FlipkartControlPanel {
         });
     }
     
+    // ===== SESSION CREATION METHODS =====
+    
+    async openSessionCreationModal() {
+        console.log('🔧 Opening session creation modal...');
+        
+        // Reset modal state
+        this.resetSessionCreationModal();
+        
+        // Open the modal
+        const modal = new bootstrap.Modal(document.getElementById('sessionCreationModal'));
+        modal.show();
+        
+        console.log('✅ Session creation modal opened');
+    }
+    
+    resetSessionCreationModal() {
+        // Reset form fields
+        document.getElementById('session-user-identifier').value = '';
+        
+        // Reset status and progress
+        this.updateSessionStatus('Ready to start session creation', 'info');
+        this.updateProgress(0, 'Not started');
+        
+        // Reset buttons
+        document.getElementById('start-session-creation').disabled = false;
+        document.getElementById('finalize-session').disabled = true;
+        
+        // Hide VNC iframe
+        document.getElementById('vnc-iframe').style.display = 'none';
+        document.getElementById('vnc-loading').style.display = 'flex';
+        
+        // Reset VNC status
+        document.getElementById('vnc-status').innerHTML = 'VNC Connection: <span class="text-warning">Ready</span>';
+    }
+    
+    async startSessionCreation() {
+        const userIdentifier = document.getElementById('session-user-identifier').value.trim();
+        
+        if (!userIdentifier) {
+            this.showToast('Please enter email or mobile number', 'error');
+            return;
+        }
+        
+        try {
+            console.log('🚀 Starting session creation for:', userIdentifier);
+            
+            // Update UI
+            document.getElementById('start-session-creation').disabled = true;
+            this.updateSessionStatus('Creating session...', 'warning');
+            this.updateProgress(10, 'Initializing session creation');
+            
+            // Create session
+            const response = await fetch('/api/sessions/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    user_identifier: userIdentifier
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                console.log('✅ Session creation started:', data);
+                
+                this.currentSessionId = data.session_id;
+                document.getElementById('session-id-display').textContent = `Session ID: ${data.session_id}`;
+                
+                this.updateProgress(25, 'Session initialized');
+                this.updateSessionStatus('Setting up VNC connection...', 'info');
+                
+                // Setup VNC connection
+                await this.setupVNCConnection();
+                
+            } else {
+                throw new Error(data.message || 'Failed to create session');
+            }
+            
+        } catch (error) {
+            console.error('❌ Session creation failed:', error);
+            this.updateSessionStatus(`Error: ${error.message}`, 'danger');
+            document.getElementById('start-session-creation').disabled = false;
+            this.showToast('Failed to create session: ' + error.message, 'error');
+        }
+    }
+    
+    async setupVNCConnection() {
+        try {
+            console.log('🔌 Setting up VNC connection...');
+            
+            this.updateProgress(40, 'Connecting to VNC...');
+            
+            // Get VNC credentials
+            const vncResponse = await fetch('/api/vnc/auth');
+            const vncData = await vncResponse.json();
+            
+            if (vncData.status !== 'success') {
+                throw new Error('Failed to get VNC credentials');
+            }
+            
+            const credentials = vncData.credentials;
+            const host = window.location.hostname;
+            
+            console.log('🔑 VNC credentials obtained');
+            
+            // Setup noVNC iframe with auto-login
+            const vncUrl = this.buildVNCUrl(host, credentials);
+            const iframe = document.getElementById('vnc-iframe');
+            
+            iframe.src = vncUrl;
+            
+            // Show iframe after short delay
+            setTimeout(() => {
+                document.getElementById('vnc-loading').style.display = 'none';
+                iframe.style.display = 'block';
+                
+                this.updateProgress(60, 'VNC connected - Browser starting...');
+                this.updateSessionStatus('Browser ready! Complete Flipkart login below.', 'success');
+                document.getElementById('vnc-status').innerHTML = 'VNC Connection: <span class="text-success">Connected</span>';
+                
+                // Start monitoring for login completion
+                this.startLoginMonitoring();
+                
+            }, 3000);
+            
+        } catch (error) {
+            console.error('❌ VNC connection failed:', error);
+            this.updateSessionStatus(`VNC Error: ${error.message}`, 'danger');
+            this.showToast('VNC connection failed: ' + error.message, 'error');
+        }
+    }
+    
+    buildVNCUrl(host, credentials) {
+        // Build noVNC URL with auto-login parameters
+        const params = new URLSearchParams({
+            autoconnect: 'true',
+            resize: 'scale',
+            quality: '6',
+            compression: '2',
+            password: credentials.password,
+            host: host,
+            port: '6080',
+            path: 'websockify'
+        });
+        
+        return `http://${host}:6080/vnc.html?${params.toString()}`;
+    }
+    
+    startLoginMonitoring() {
+        console.log('👁️ Starting login monitoring...');
+        
+        this.updateProgress(70, 'Waiting for Flipkart login...');
+        
+        // Update instructions
+        document.getElementById('instructions-content').innerHTML = `
+            <div class="alert alert-warning small">
+                <strong>Complete these steps in the browser:</strong>
+                <ol class="mb-0 mt-2">
+                    <li>Navigate to <strong>www.flipkart.com</strong></li>
+                    <li>Click on <strong>Login</strong></li>
+                    <li>Enter your email/mobile number</li>
+                    <li>Request and enter OTP</li>
+                    <li>Verify you're logged in successfully</li>
+                    <li>Click "Complete Session Setup" below</li>
+                </ol>
+            </div>
+        `;
+        
+        // Enable finalize button after some time
+        setTimeout(() => {
+            document.getElementById('finalize-session').disabled = false;
+            this.updateProgress(85, 'Ready to finalize - Complete login first');
+        }, 10000);
+    }
+    
+    async finalizeSessionCreation() {
+        const userIdentifier = document.getElementById('session-user-identifier').value.trim();
+        
+        if (!this.currentSessionId) {
+            this.showToast('No active session to finalize', 'error');
+            return;
+        }
+        
+        try {
+            console.log('✅ Finalizing session creation...');
+            
+            document.getElementById('finalize-session').disabled = true;
+            this.updateProgress(95, 'Finalizing session...');
+            this.updateSessionStatus('Saving session...', 'info');
+            
+            const response = await fetch(`/api/sessions/${this.currentSessionId}/finalize`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    user_identifier: userIdentifier,
+                    login_completed: true
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                console.log('🎉 Session creation completed!');
+                
+                this.updateProgress(100, 'Session created successfully!');
+                this.updateSessionStatus('Session created successfully!', 'success');
+                
+                this.showToast('Session created successfully!', 'success');
+                
+                // Close modal after short delay
+                setTimeout(() => {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('sessionCreationModal'));
+                    modal.hide();
+                    
+                    // Refresh sessions list
+                    this.loadSessions();
+                }, 2000);
+                
+            } else {
+                throw new Error(data.message || 'Failed to finalize session');
+            }
+            
+        } catch (error) {
+            console.error('❌ Session finalization failed:', error);
+            this.updateSessionStatus(`Error: ${error.message}`, 'danger');
+            document.getElementById('finalize-session').disabled = false;
+            this.showToast('Failed to finalize session: ' + error.message, 'error');
+        }
+    }
+    
+    reconnectVNC() {
+        console.log('🔄 Reconnecting VNC...');
+        
+        const iframe = document.getElementById('vnc-iframe');
+        const currentSrc = iframe.src;
+        
+        // Hide iframe and show loading
+        iframe.style.display = 'none';
+        document.getElementById('vnc-loading').style.display = 'flex';
+        document.getElementById('vnc-status').innerHTML = 'VNC Connection: <span class="text-warning">Reconnecting...</span>';
+        
+        // Reload iframe
+        iframe.src = '';
+        setTimeout(() => {
+            iframe.src = currentSrc;
+            
+            setTimeout(() => {
+                document.getElementById('vnc-loading').style.display = 'none';
+                iframe.style.display = 'block';
+                document.getElementById('vnc-status').innerHTML = 'VNC Connection: <span class="text-success">Connected</span>';
+            }, 3000);
+        }, 1000);
+    }
+    
+    toggleVNCFullscreen() {
+        const iframe = document.getElementById('vnc-iframe');
+        
+        if (iframe.requestFullscreen) {
+            iframe.requestFullscreen();
+        } else if (iframe.webkitRequestFullscreen) {
+            iframe.webkitRequestFullscreen();
+        } else if (iframe.mozRequestFullScreen) {
+            iframe.mozRequestFullScreen();
+        } else if (iframe.msRequestFullscreen) {
+            iframe.msRequestFullscreen();
+        }
+    }
+    
+    updateSessionStatus(message, type = 'info') {
+        const statusElement = document.getElementById('session-status');
+        const iconMap = {
+            'info': 'fas fa-info-circle',
+            'success': 'fas fa-check-circle',
+            'warning': 'fas fa-exclamation-triangle',
+            'danger': 'fas fa-times-circle'
+        };
+        
+        statusElement.className = `alert alert-${type}`;
+        statusElement.innerHTML = `<i class="${iconMap[type]} me-2"></i>${message}`;
+    }
+    
+    updateProgress(percentage, text) {
+        const progressBar = document.getElementById('creation-progress');
+        const progressText = document.getElementById('progress-text');
+        
+        progressBar.style.width = `${percentage}%`;
+        progressBar.setAttribute('aria-valuenow', percentage);
+        
+        if (progressText) {
+            progressText.textContent = text;
+        }
+    }
+
     destroy() {
         // Clean up intervals and event sources
         if (this.refreshInterval) {
