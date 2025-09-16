@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flipkart Automation Control Panel</title>
+    
+    <!-- CSS Stylesheets -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <nav class="navbar navbar-dark bg-primary shadow-sm">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-robot me-2"></i>
+                Flipkart Automation Control Panel
+            </span>
+            <div class="d-flex align-items-center">
+                <span id="current-time" class="text-white-50 me-3"></span>
+                <div class="status-indicator">
+                    <span id="connection-status" class="badge bg-success">
+                        <i class="fas fa-circle"></i> Connected
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- Left Panel - Configuration -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-cog me-2"></i>Automation Configuration
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="config-form">
+                            <!-- Search Settings -->
+                            <div class="mb-3">
+                                <label for="search-query" class="form-label">
+                                    <i class="fas fa-search me-1"></i>Search Query
+                                </label>
+                                <input type="text" class="form-control" id="search-query" 
+                                       placeholder="e.g., iPhone 14 128GB" required>
+                            </div>
+                            
+                            <!-- Price Range -->
+                            <div class="row mb-3">
+                                <div class="col-6">
+                                    <label for="min-price" class="form-label">Min Price (₹)</label>
+                                    <input type="number" class="form-control" id="min-price" min="1" value="1">
+                                </div>
+                                <div class="col-6">
+                                    <label for="max-price" class="form-label">Max Price (₹)</label>
+                                    <input type="number" class="form-control" id="max-price" min="1" value="999999">
+                                </div>
+                            </div>
+                            
+                            <!-- Filters -->
+                            <div class="mb-3">
+                                <label for="brand-filter" class="form-label">
+                                    <i class="fas fa-filter me-1"></i>Brand Filter
+                                </label>
+                                <select class="form-select" id="brand-filter">
+                                    <option value="">All Brands</option>
+                                    <option value="Apple">Apple</option>
+                                    <option value="Samsung">Samsung</option>
+                                    <option value="OnePlus">OnePlus</option>
+                                    <option value="Xiaomi">Xiaomi</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="sort-by" class="form-label">
+                                    <i class="fas fa-sort me-1"></i>Sort By
+                                </label>
+                                <select class="form-select" id="sort-by">
+                                    <option value="price_low_to_high">Price: Low to High</option>
+                                    <option value="price_high_to_low">Price: High to Low</option>
+                                    <option value="popularity">Popularity</option>
+                                    <option value="newest_first">Newest First</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Advanced Settings -->
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="headless-mode" checked>
+                                    <label class="form-check-label" for="headless-mode">
+                                        Run in Headless Mode (Background)
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="sale-detection">
+                                    <label class="form-check-label" for="sale-detection">
+                                        Enable Sale Detection
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-save me-2"></i>Save Configuration
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- System Status Card -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-line me-2"></i>System Status
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="stat-box">
+                                    <h3 id="total-sessions" class="text-primary">0</h3>
+                                    <small class="text-muted">Total Sessions</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="stat-box">
+                                    <h3 id="active-sessions" class="text-success">0</h3>
+                                    <small class="text-muted">Active Sessions</small>
+                                </div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="d-grid gap-2">
+                            <button id="start-all-btn" class="btn btn-success btn-sm">
+                                <i class="fas fa-play me-2"></i>Start All Sessions
+                            </button>
+                            <button id="stop-all-btn" class="btn btn-danger btn-sm">
+                                <i class="fas fa-stop me-2"></i>Stop All Sessions
+                            </button>
+                            <button id="refresh-sessions-btn" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-refresh me-2"></i>Refresh Sessions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Panel - Session Management -->
+            <div class="col-lg-8">
+                <!-- Session Controls Header -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-users me-2"></i>Session Management
+                        </h5>
+                        <div class="btn-group" role="group">
+                            <button id="view-grid-btn" class="btn btn-outline-secondary btn-sm active">
+                                <i class="fas fa-th"></i> Grid
+                            </button>
+                            <button id="view-list-btn" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-list"></i> List
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sessions Container -->
+                <div id="sessions-container" class="row">
+                    <!-- Sessions will be dynamically loaded here -->
+                </div>
+                
+                <!-- Loading Indicator -->
+                <div id="loading-indicator" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading sessions...</p>
+                </div>
+                
+                <!-- No Sessions Message -->
+                <div id="no-sessions" class="text-center py-5 d-none">
+                    <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">No Sessions Found</h4>
+                    <p class="text-muted">Create a session first using the session setup.</p>
+                    <button class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Setup New Session
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Log Viewer Modal -->
+    <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="logModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="logModalLabel">
+                        <i class="fas fa-file-alt me-2"></i>Session Logs
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <strong>Session: </strong><span id="current-log-session"></span>
+                        </div>
+                        <div class="btn-group">
+                            <button id="auto-scroll-btn" class="btn btn-outline-secondary btn-sm active">
+                                <i class="fas fa-arrow-down me-1"></i>Auto Scroll
+                            </button>
+                            <button id="clear-logs-btn" class="btn btn-outline-danger btn-sm">
+                                <i class="fas fa-trash me-1"></i>Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div id="log-container" class="bg-dark text-light p-3 rounded" 
+                         style="height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px;">
+                        <!-- Logs will appear here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Status Messages -->
+    <div id="status-messages" class="position-fixed top-0 end-0 p-3" style="z-index: 1055;">
+        <!-- Toast messages will appear here -->
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/control-panel.js') }}"></script>
+</body>
+</html>

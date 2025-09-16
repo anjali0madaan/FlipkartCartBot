@@ -31,6 +31,10 @@ args = "Session 1 - Mobile"
 task = "workflow.run"
 args = "Session 2 - Email"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Web Control Panel"
+
 [[workflows.workflow]]
 name = "Session Setup"
 author = "agent"
@@ -74,3 +78,19 @@ outputType = "vnc"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python run_automation.py --use-session rasikmanjula2@gmail.com --yes"
+
+[[workflows.workflow]]
+name = "Web Control Panel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python web_control_panel.py"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
