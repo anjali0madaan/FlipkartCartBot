@@ -639,25 +639,19 @@ class FlipkartAutomation:
                 # Wait for page to load
                 self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
                 
-                # Find and click "Add to Cart" button - multiple selectors
+                # Find and click "Add to Cart" button - specific selectors that exclude "Buy Now"
                 add_to_cart_selectors = [
-                    "//button[contains(text(), 'ADD TO CART')]",
-                    "//button[contains(text(), 'Add to Cart')]",
-                    "//button[contains(@class, '_2KpZ6l') and contains(@class, '_2U9uOA')]",
-                    "//li[@class='col col-6-12']//button[contains(@class, '_2KpZ6l')]",
-                    "//button[contains(@class, '_2KpZ6l')]",  # Generic button class
-                    "//button[contains(@class, '_2AkmmA')]",  # Alternative button class
-                    "//button[contains(@class, '_3Mjr7N')]",  # New button class
-                    "//button[contains(@class, '_1XmrsL')]",  # Updated button class
-                    "//button[contains(@class, '_16PBlm')]",  # Primary button class
-                    "//form//button[@type='button']",        # Form button
-                    "//div[contains(@class, 'col-6-12')]//button",  # Column button
-                    "//button[contains(text(), 'Go to Cart')]",     # Already in cart scenario
-                    "//span[contains(text(), 'ADD TO CART')]/parent::button",  # Span inside button
-                    "//div[contains(text(), 'ADD TO CART')]/parent::button",   # Div inside button
-                    "//button[@data-testid='add-to-cart']", # Test ID
-                    "//input[@value='ADD TO CART']",        # Input type button
-                    "//a[contains(text(), 'ADD TO CART')]"  # Link styled as button
+                    "//button[contains(text(), 'ADD TO CART') and not(contains(text(), 'BUY')) and not(contains(text(), 'Buy'))]",
+                    "//button[contains(text(), 'Add to Cart') and not(contains(text(), 'BUY')) and not(contains(text(), 'Buy'))]",
+                    "//span[contains(text(), 'ADD TO CART')]/parent::button[not(contains(text(), 'BUY')) and not(contains(text(), 'Buy'))]",
+                    "//div[contains(text(), 'ADD TO CART')]/parent::button[not(contains(text(), 'BUY')) and not(contains(text(), 'Buy'))]",
+                    "//button[@data-testid='add-to-cart']",
+                    "//input[@value='ADD TO CART']",
+                    "//a[contains(text(), 'ADD TO CART') and not(contains(text(), 'BUY')) and not(contains(text(), 'Buy'))]",
+                    "//button[contains(text(), 'Go to Cart')]",  # Already in cart scenario
+                    # More specific class-based selectors only if they contain cart-related text
+                    "//button[contains(@class, '_2KpZ6l') and (contains(text(), 'CART') or contains(text(), 'Cart'))]",
+                    "//button[contains(@class, '_2AkmmA') and (contains(text(), 'CART') or contains(text(), 'Cart'))]"
                 ]
                 
                 add_to_cart_button = None
