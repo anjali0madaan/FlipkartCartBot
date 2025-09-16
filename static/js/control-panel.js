@@ -848,64 +848,72 @@ class FlipkartControlPanel {
     
     async setupVNCConnection() {
         try {
-            console.log('🔌 Setting up VNC connection...');
+            console.log('🔌 Setting up simplified session creation...');
             
-            this.updateProgress(40, 'Connecting to VNC...');
+            this.updateProgress(40, 'Preparing browser session...');
             
-            // Get VNC credentials
-            const vncResponse = await fetch('/api/vnc/auth');
-            const vncData = await vncResponse.json();
+            // Hide VNC iframe and show simplified instructions
+            document.getElementById('vnc-loading').style.display = 'none';
+            document.getElementById('vnc-iframe').style.display = 'none';
             
-            if (vncData.status !== 'success') {
-                throw new Error('Failed to get VNC credentials');
-            }
+            // Show simplified browser instructions
+            this.showSimplifiedInstructions();
             
-            const credentials = vncData.credentials;
-            const host = window.location.hostname;
+            this.updateProgress(60, 'Ready for Flipkart login');
+            this.updateSessionStatus('Please complete Flipkart login in a new tab', 'success');
+            document.getElementById('vnc-status').innerHTML = 'Browser Session: <span class="text-success">Ready</span>';
             
-            console.log('🔑 VNC credentials obtained');
-            
-            // Setup noVNC iframe with auto-login
-            const vncUrl = this.buildVNCUrl(host, credentials);
-            const iframe = document.getElementById('vnc-iframe');
-            
-            iframe.src = vncUrl;
-            
-            // Show iframe after short delay
-            setTimeout(() => {
-                document.getElementById('vnc-loading').style.display = 'none';
-                iframe.style.display = 'block';
-                
-                this.updateProgress(60, 'VNC connected - Browser starting...');
-                this.updateSessionStatus('Browser ready! Complete Flipkart login below.', 'success');
-                document.getElementById('vnc-status').innerHTML = 'VNC Connection: <span class="text-success">Connected</span>';
-                
-                // Start monitoring for login completion
-                this.startLoginMonitoring();
-                
-            }, 3000);
+            // Start monitoring for login completion
+            this.startLoginMonitoring();
             
         } catch (error) {
-            console.error('❌ VNC connection failed:', error);
-            this.updateSessionStatus(`VNC Error: ${error.message}`, 'danger');
-            this.showToast('VNC connection failed: ' + error.message, 'error');
+            console.error('❌ Session setup failed:', error);
+            this.updateSessionStatus(`Setup Error: ${error.message}`, 'danger');
+            this.showToast('Session setup failed: ' + error.message, 'error');
         }
     }
     
-    buildVNCUrl(host, credentials) {
-        // Build noVNC URL with auto-login parameters
-        const params = new URLSearchParams({
-            autoconnect: 'true',
-            resize: 'scale',
-            quality: '6',
-            compression: '2',
-            password: credentials.password,
-            host: host,
-            port: '6080',
-            path: 'websockify'
-        });
-        
-        return `http://${host}:6080/vnc.html?${params.toString()}`;
+    showSimplifiedInstructions() {
+        const rightPanel = document.querySelector('.col-md-9');
+        rightPanel.innerHTML = `
+            <div class="h-100 d-flex align-items-center justify-content-center">
+                <div class="text-center p-5">
+                    <div class="mb-4">
+                        <i class="fas fa-browser fa-4x text-primary mb-3"></i>
+                        <h3>Complete Flipkart Login</h3>
+                    </div>
+                    
+                    <div class="card border-primary mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary">
+                                <i class="fas fa-external-link-alt me-2"></i>
+                                Open Flipkart in New Tab
+                            </h5>
+                            <p class="card-text">Click the button below to open Flipkart and complete your login</p>
+                            <a href="https://www.flipkart.com" target="_blank" class="btn btn-primary btn-lg">
+                                <i class="fas fa-shopping-cart me-2"></i>Open Flipkart
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info text-start">
+                        <h6><i class="fas fa-list-ol me-2"></i>Follow these steps:</h6>
+                        <ol class="mb-0">
+                            <li><strong>Click "Open Flipkart"</strong> above (opens in new tab)</li>
+                            <li><strong>Login</strong> with your email/mobile: <code>${document.getElementById('session-user-identifier').value}</code></li>
+                            <li><strong>Enter OTP</strong> and verify login is successful</li>
+                            <li><strong>Come back to this tab</strong> and click "Complete Session Setup" below</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button id="verify-login-btn" class="btn btn-success btn-lg" onclick="controlPanel.finalizeSessionCreation()">
+                            <i class="fas fa-check me-2"></i>Complete Session Setup
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
     }
     
     startLoginMonitoring() {
@@ -913,26 +921,23 @@ class FlipkartControlPanel {
         
         this.updateProgress(70, 'Waiting for Flipkart login...');
         
-        // Update instructions
+        // Update instructions for simplified workflow
         document.getElementById('instructions-content').innerHTML = `
-            <div class="alert alert-warning small">
-                <strong>Complete these steps in the browser:</strong>
-                <ol class="mb-0 mt-2">
-                    <li>Navigate to <strong>www.flipkart.com</strong></li>
-                    <li>Click on <strong>Login</strong></li>
-                    <li>Enter your email/mobile number</li>
-                    <li>Request and enter OTP</li>
-                    <li>Verify you're logged in successfully</li>
-                    <li>Click "Complete Session Setup" below</li>
-                </ol>
+            <div class="alert alert-success small">
+                <strong>✅ Session creation is ready!</strong>
+                <p class="mb-2 mt-2">Complete your login in the new tab that opens, then return here to finalize.</p>
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <span>Make sure you're logged in successfully on Flipkart</span>
+                </div>
             </div>
         `;
         
-        // Enable finalize button after some time
+        // Enable finalize button immediately for simplified workflow
         setTimeout(() => {
             document.getElementById('finalize-session').disabled = false;
-            this.updateProgress(85, 'Ready to finalize - Complete login first');
-        }, 10000);
+            this.updateProgress(85, 'Ready to complete - Please login first');
+        }, 2000);
     }
     
     async finalizeSessionCreation() {
