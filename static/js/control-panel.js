@@ -790,7 +790,10 @@ class FlipkartControlPanel {
         document.getElementById('vnc-loading').style.display = 'flex';
         
         // Reset VNC status
-        document.getElementById('vnc-status').innerHTML = 'VNC Connection: <span class="text-warning">Ready</span>';
+        const vncStatus = document.getElementById('vnc-status');
+        if (vncStatus) {
+            vncStatus.innerHTML = 'VNC Connection: <span class="text-warning">Ready</span>';
+        }
     }
     
     async startSessionCreation() {
@@ -861,11 +864,21 @@ class FlipkartControlPanel {
             
             this.updateProgress(80, 'Chrome launched in VNC');
             this.updateSessionStatus('Chrome auto-launched - Complete login in VNC tab', 'success');
-            document.getElementById('vnc-status').innerHTML = 'Chrome Status: <span class="text-success">Launched in VNC</span>';
+            
+            const vncStatus = document.getElementById('vnc-status');
+            if (vncStatus) {
+                vncStatus.innerHTML = 'Chrome Status: <span class="text-success">Launched in VNC</span>';
+            }
             
             // Enable finalize button immediately
             setTimeout(() => {
-                document.getElementById('finalize-session').disabled = false;
+                const finalizeBtn = document.getElementById('finalize-session');
+                if (finalizeBtn) {
+                    finalizeBtn.disabled = false;
+                    console.log('✅ Finalize button enabled');
+                } else {
+                    console.error('❌ Finalize button not found!');
+                }
                 this.updateProgress(100, 'Ready for login completion');
             }, 1000);
             
@@ -1001,7 +1014,10 @@ class FlipkartControlPanel {
         // Hide iframe and show loading
         iframe.style.display = 'none';
         document.getElementById('vnc-loading').style.display = 'flex';
-        document.getElementById('vnc-status').innerHTML = 'VNC Connection: <span class="text-warning">Reconnecting...</span>';
+        const vncStatusReconnect = document.getElementById('vnc-status');
+        if (vncStatusReconnect) {
+            vncStatusReconnect.innerHTML = 'VNC Connection: <span class="text-warning">Reconnecting...</span>';
+        }
         
         // Reload iframe
         iframe.src = '';
@@ -1011,7 +1027,10 @@ class FlipkartControlPanel {
             setTimeout(() => {
                 document.getElementById('vnc-loading').style.display = 'none';
                 iframe.style.display = 'block';
-                document.getElementById('vnc-status').innerHTML = 'VNC Connection: <span class="text-success">Connected</span>';
+                const vncStatusConnected = document.getElementById('vnc-status');
+                if (vncStatusConnected) {
+                    vncStatusConnected.innerHTML = 'VNC Connection: <span class="text-success">Connected</span>';
+                }
             }, 3000);
         }, 1000);
     }
@@ -1032,6 +1051,11 @@ class FlipkartControlPanel {
     
     updateSessionStatus(message, type = 'info') {
         const statusElement = document.getElementById('session-status');
+        if (!statusElement) {
+            console.warn('Session status element not found');
+            return;
+        }
+        
         const iconMap = {
             'info': 'fas fa-info-circle',
             'success': 'fas fa-check-circle',
