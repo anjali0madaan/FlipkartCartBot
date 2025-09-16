@@ -787,7 +787,7 @@ class FlipkartAutomation:
             self.logger.info(f"Found {len(products)} products matching criteria")
             
             # Add products to cart based on price criteria
-            max_items_to_add = min(3, len(products))  # Limit to prevent excessive additions
+            max_items_to_add = min(1, len(products))  # Add only 1 item as requested
             
             for i, product in enumerate(products[:max_items_to_add]):
                 self.logger.info(f"Processing product {i+1}/{max_items_to_add}")

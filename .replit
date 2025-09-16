@@ -38,9 +38,9 @@ outputType = "console"
 name = "Flipkart Automation"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python run_automation.py --use-session rasikmanjula2@gmail.com"
-
-[workflows.workflow.metadata]
-outputType = "console"
