@@ -41,6 +41,10 @@ class FlipkartControlPanel {
             this.startAllSessions();
         });
         
+        document.getElementById('start-sequential-btn')?.addEventListener('click', () => {
+            this.startSequentialSessions();
+        });
+        
         document.getElementById('stop-all-btn')?.addEventListener('click', () => {
             this.stopAllSessions();
         });
@@ -105,10 +109,13 @@ class FlipkartControlPanel {
     }
     
     startAutoRefresh() {
-        // Refresh sessions every 5 seconds
+        // Refresh sessions every 10 seconds to reduce server load
         this.refreshInterval = setInterval(() => {
-            this.loadSessions();
-        }, 5000);
+            // Only refresh if tab is visible to prevent excessive requests
+            if (!document.hidden) {
+                this.loadSessions();
+            }
+        }, 10000);
     }
     
     async loadConfig() {
@@ -429,6 +436,39 @@ class FlipkartControlPanel {
             this.showToast('Failed to start all sessions: ' + error.message, 'error');
         } finally {
             const btn = document.getElementById('start-all-btn');
+            if (btn) {
+                btn.classList.remove('btn-loading');
+                btn.disabled = false;
+            }
+        }
+    }
+    
+    async startSequentialSessions() {
+        try {
+            const btn = document.getElementById('start-sequential-btn');
+            if (btn) {
+                btn.classList.add('btn-loading');
+                btn.disabled = true;
+            }
+            
+            const response = await fetch('/api/sessions/start-sequential', {
+                method: 'POST'
+            });
+            
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                this.showToast(`Sequential execution started for ${data.total_sessions} sessions!`, 'success');
+                this.showToast('Sessions will run one after another', 'info');
+                this.loadSessions(); // Refresh sessions
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (error) {
+            console.error('Failed to start sequential execution:', error);
+            this.showToast('Failed to start sequential execution: ' + error.message, 'error');
+        } finally {
+            const btn = document.getElementById('start-sequential-btn');
             if (btn) {
                 btn.classList.remove('btn-loading');
                 btn.disabled = false;

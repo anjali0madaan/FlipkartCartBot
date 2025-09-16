@@ -20,10 +20,48 @@ from typing import Dict, List, Optional
 app = Flask(__name__)
 CORS(app)
 
+# Global error handlers to ensure JSON responses
+@app.errorhandler(404)
+def not_found_error(error):
+    response = jsonify({
+        'status': 'error',
+        'message': 'Endpoint not found',
+        'error_code': 404
+    })
+    response.headers['Content-Type'] = 'application/json'
+    return response, 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    response = jsonify({
+        'status': 'error',
+        'message': 'Internal server error',
+        'error_code': 500
+    })
+    response.headers['Content-Type'] = 'application/json'
+    return response, 500
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handle all unhandled exceptions with JSON response."""
+    response = jsonify({
+        'status': 'error',
+        'message': str(e),
+        'error_code': 500
+    })
+    response.headers['Content-Type'] = 'application/json'
+    return response, 500
+
 # Global variables for managing session states
 session_processes: Dict[str, subprocess.Popen] = {}
 session_logs: Dict[str, queue.Queue] = {}
 session_status: Dict[str, str] = {}  # 'running', 'stopped', 'finished', 'error'
+
+# Global variables for sequential execution
+sequential_execution_active = False
+sequential_queue = queue.Queue()
+sequential_thread = None
+sequential_current_session = None
 
 class WebControlPanel:
     def __init__(self):
@@ -91,26 +129,117 @@ class WebControlPanel:
     
     def get_all_sessions(self) -> List[dict]:
         """Get all available sessions with status."""
-        sessions = self.session_manager.list_available_sessions()
-        result = []
-        
-        for session in sessions:
-            session_id = session['user']
-            status = session_status.get(session_id, 'stopped')
+        try:
+            sessions = self.session_manager.list_available_sessions()
+            result = []
             
-            result.append({
-                'id': session_id,
-                'user': session['user'],
-                'created': session['created'],
-                'last_used': session['last_used'],
-                'valid': session['valid'],
-                'status': status,
-                'profile_name': session.get('profile_name', ''),
-                'can_start': session['valid'] and status not in ['running'],
-                'can_stop': status == 'running'
-            })
-        
-        return result
+            for session in sessions:
+                try:
+                    # Safely extract session data with defaults
+                    session_id = session.get('user', 'unknown')
+                    status = session_status.get(session_id, 'stopped')
+                    
+                    result.append({
+                        'id': session_id,
+                        'user': session.get('user', 'unknown'),
+                        'created': session.get('created', 'Unknown'),
+                        'last_used': session.get('last_used', 'Unknown'),
+                        'valid': session.get('valid', False),
+                        'status': status,
+                        'profile_name': session.get('profile_name', ''),
+                        'can_start': session.get('valid', False) and status not in ['running'],
+                        'can_stop': status == 'running'
+                    })
+                except Exception as e:
+                    self.logger.error(f"Error processing session {session}: {e}")
+                    # Add a safe fallback entry for malformed sessions
+                    result.append({
+                        'id': f"error-{len(result)}",
+                        'user': 'Error loading session',
+                        'created': 'Unknown',
+                        'last_used': 'Unknown',
+                        'valid': False,
+                        'status': 'error',
+                        'profile_name': '',
+                        'can_start': False,
+                        'can_stop': False
+                    })
+            
+            return result
+        except Exception as e:
+            self.logger.error(f"Error getting sessions: {e}")
+            return []
+
+def sequential_worker():
+    """Worker function that processes sessions sequentially."""
+    global sequential_execution_active, sequential_current_session
+    
+    while sequential_execution_active:
+        try:
+            # Get next session from queue (blocking call with timeout)
+            session_data = sequential_queue.get(timeout=1.0)
+            if session_data is None:  # Poison pill to stop worker
+                break
+                
+            session_id = session_data['id']
+            sequential_current_session = session_id
+            
+            # Start the session
+            cmd = ["python", "run_automation.py", "--use-session", session_id, "--yes"]
+            
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+                bufsize=1
+            )
+            
+            session_processes[session_id] = process
+            session_status[session_id] = 'running'
+            
+            # Initialize log queue
+            if session_id not in session_logs:
+                session_logs[session_id] = queue.Queue()
+            
+            # Start log monitoring
+            log_thread = threading.Thread(
+                target=monitor_session_logs,
+                args=(session_id, process),
+                daemon=True
+            )
+            log_thread.start()
+            
+            # Wait for this session to complete before starting next one
+            process.wait()
+            
+            # Update status based on return code
+            if process.returncode == 0:
+                session_status[session_id] = 'finished'
+            else:
+                session_status[session_id] = 'error'
+            
+            # Remove from active processes
+            if session_id in session_processes:
+                del session_processes[session_id]
+                
+            sequential_queue.task_done()
+            
+        except queue.Empty:
+            # Timeout waiting for next session, continue loop
+            continue
+        except Exception as e:
+            if 'session_id' in locals() and session_id:
+                session_status[session_id] = 'error'
+                if session_id in session_processes:
+                    del session_processes[session_id]
+            print(f"Error in sequential worker: {e}")
+            if not sequential_queue.empty():
+                sequential_queue.task_done()
+    
+    sequential_current_session = None
+    print("Sequential worker stopped")
+
 
 control_panel = WebControlPanel()
 
@@ -124,17 +253,22 @@ def get_sessions():
     """Get all available sessions with their status."""
     try:
         sessions = control_panel.get_all_sessions()
-        return jsonify({
+        response = jsonify({
             'status': 'success',
             'sessions': sessions,
             'total_sessions': len(sessions),
             'timestamp': datetime.now().isoformat()
         })
+        response.headers['Content-Type'] = 'application/json'
+        return response
     except Exception as e:
-        return jsonify({
+        control_panel.logger.error(f"Error in /api/sessions: {e}")
+        response = jsonify({
             'status': 'error',
             'message': str(e)
-        }), 500
+        })
+        response.headers['Content-Type'] = 'application/json'
+        return response, 500
 
 @app.route('/api/sessions/<session_id>/start', methods=['POST'])
 def start_session(session_id):
@@ -142,10 +276,12 @@ def start_session(session_id):
     try:
         # Check if session already running
         if session_id in session_processes and session_processes[session_id].poll() is None:
-            return jsonify({
+            response = jsonify({
                 'status': 'error',
                 'message': f'Session {session_id} is already running'
-            }), 400
+            })
+            response.headers['Content-Type'] = 'application/json'
+            return response, 400
         
         # Start the automation process
         cmd = ["python", "run_automation.py", "--use-session", session_id, "--yes"]
@@ -173,19 +309,29 @@ def start_session(session_id):
         )
         log_thread.start()
         
-        return jsonify({
+        response = jsonify({
             'status': 'success',
             'message': f'Session {session_id} started successfully',
             'session_id': session_id,
             'pid': process.pid
         })
+        response.headers['Content-Type'] = 'application/json'
+        return response
     
     except Exception as e:
-        session_status[session_id] = 'error'
-        return jsonify({
+        # Ensure session_id is properly handled in error cases
+        if 'session_id' in locals():
+            session_status[session_id] = 'error'
+            error_message = f'Failed to start session {session_id}: {str(e)}'
+        else:
+            error_message = f'Failed to start session: {str(e)}'
+        
+        response = jsonify({
             'status': 'error',
-            'message': f'Failed to start session {session_id}: {str(e)}'
-        }), 500
+            'message': error_message
+        })
+        response.headers['Content-Type'] = 'application/json'
+        return response, 500
 
 @app.route('/api/sessions/<session_id>/stop', methods=['POST'])
 def stop_session(session_id):
@@ -201,16 +347,20 @@ def stop_session(session_id):
         
         session_status[session_id] = 'stopped'
         
-        return jsonify({
+        response = jsonify({
             'status': 'success',
             'message': f'Session {session_id} stopped successfully'
         })
+        response.headers['Content-Type'] = 'application/json'
+        return response
     
     except Exception as e:
-        return jsonify({
+        response = jsonify({
             'status': 'error',
             'message': f'Failed to stop session {session_id}: {str(e)}'
-        }), 500
+        })
+        response.headers['Content-Type'] = 'application/json'
+        return response, 500
 
 @app.route('/api/sessions/start-all', methods=['POST'])
 def start_all_sessions():
@@ -270,13 +420,79 @@ def start_all_sessions():
             'message': f'Failed to start all sessions: {str(e)}'
         }), 500
 
+@app.route('/api/sessions/start-sequential', methods=['POST'])
+def start_all_sessions_sequential():
+    """Start all valid sessions sequentially (one after another)."""
+    global sequential_execution_active, sequential_thread
+    
+    try:
+        # Check if sequential execution is already running
+        if sequential_execution_active:
+            return jsonify({
+                'status': 'error',
+                'message': 'Sequential execution is already running'
+            }), 400
+        
+        sessions = control_panel.get_all_sessions()
+        startable_sessions = [s for s in sessions if s['can_start']]
+        
+        if not startable_sessions:
+            return jsonify({
+                'status': 'error',
+                'message': 'No valid sessions available to start'
+            }), 400
+        
+        # Clear the queue and add all startable sessions
+        while not sequential_queue.empty():
+            try:
+                sequential_queue.get_nowait()
+            except queue.Empty:
+                break
+        
+        for session in startable_sessions:
+            sequential_queue.put(session)
+        
+        # Start sequential execution
+        sequential_execution_active = True
+        sequential_thread = threading.Thread(
+            target=sequential_worker,
+            daemon=True
+        )
+        sequential_thread.start()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Sequential execution started for {len(startable_sessions)} sessions',
+            'total_sessions': len(startable_sessions),
+            'sessions': [s['id'] for s in startable_sessions],
+            'mode': 'sequential'
+        })
+    
+    except Exception as e:
+        sequential_execution_active = False
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to start sequential execution: {str(e)}'
+        }), 500
+
 @app.route('/api/sessions/stop-all', methods=['POST'])
 def stop_all_sessions():
-    """Stop all running sessions."""
+    """Stop all running sessions and sequential execution."""
+    global sequential_execution_active
+    
     try:
         stopped_sessions = []
         failed_sessions = []
         
+        # Stop sequential execution if running
+        sequential_stopped = False
+        if sequential_execution_active:
+            sequential_execution_active = False
+            # Add poison pill to queue to stop worker
+            sequential_queue.put(None)
+            sequential_stopped = True
+        
+        # Stop all individual running sessions
         for session_id, process in list(session_processes.items()):
             try:
                 if process.poll() is None:  # Process is still running
@@ -292,11 +508,16 @@ def stop_all_sessions():
         # Clear all processes
         session_processes.clear()
         
+        message = f'Stopped {len(stopped_sessions)} sessions'
+        if sequential_stopped:
+            message += ' and sequential execution'
+        
         return jsonify({
             'status': 'success',
-            'message': f'Stopped {len(stopped_sessions)} sessions',
+            'message': message,
             'stopped_sessions': stopped_sessions,
-            'failed_sessions': failed_sessions
+            'failed_sessions': failed_sessions,
+            'sequential_stopped': sequential_stopped
         })
     
     except Exception as e:
@@ -432,6 +653,10 @@ def stream_logs(session_id):
 def monitor_session_logs(session_id: str, process: subprocess.Popen):
     """Monitor logs from a session process."""
     try:
+        if process.stdout is None:
+            session_status[session_id] = 'error'
+            return
+        
         for line in iter(process.stdout.readline, ''):
             if not line:
                 break
@@ -475,12 +700,14 @@ def monitor_session_logs(session_id: str, process: subprocess.Popen):
 @app.route('/api/health')
 def health_check():
     """Health check endpoint."""
-    return jsonify({
+    response = jsonify({
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
         'active_sessions': len([s for s in session_status.values() if s == 'running']),
         'total_sessions': len(session_status)
     })
+    response.headers['Content-Type'] = 'application/json'
+    return response
 
 if __name__ == '__main__':
     # Ensure templates directory exists
