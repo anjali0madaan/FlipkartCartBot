@@ -57,20 +57,20 @@ args = "python run_automation.py --use-session rasikmanjula2@gmail.com"
 name = "Session 1 - Mobile"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "vnc"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python run_automation.py --use-session 8950551041"
-
-[workflows.workflow.metadata]
-outputType = "console"
+args = "python run_automation.py --use-session 8950551041 --yes"
 
 [[workflows.workflow]]
 name = "Session 2 - Email"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "vnc"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python run_automation.py --use-session rasikmanjula2@gmail.com"
-
-[workflows.workflow.metadata]
-outputType = "console"
+args = "python run_automation.py --use-session rasikmanjula2@gmail.com --yes"
