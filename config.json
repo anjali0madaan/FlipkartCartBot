@@ -1,8 +1,8 @@
 {
   "search_settings": {
     "product_name": "iPhone",
-    "max_price": 90000,
-    "min_price": 60000,
+    "max_price": 999999,
+    "min_price": 1,
     "search_query": "iPhone 14 128GB",
     "direct_search_url": "https://www.flipkart.com/search?q=iphone16+pro+max&sid=tyy%2C4io&as=on&as-show=on&otracker=AS_QueryStore_HistoryAutoSuggest_1_6_na_na_na&otracker1=AS_QueryStore_HistoryAutoSuggest_1_6_na_na_na&as-pos=1&as-type=HISTORY&suggestionId=iphone16+pro+max%7CMobiles&requestId=b9365c69-7f2a-432e-bec5-a888d41bbd5a&as-searchtext=iphone&p%5B%5D=facets.price_range.from%3DMin&p%5B%5D=facets.price_range.to%3DMax&p%5B%5D=facets.brand%255B%255D%3DApple"
   },
