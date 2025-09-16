@@ -654,16 +654,40 @@ class FlipkartAutomation:
                     "//button[contains(@class, '_2AkmmA') and (contains(text(), 'CART') or contains(text(), 'Cart'))]"
                 ]
                 
+                # Debug: Log all buttons found on the page
+                try:
+                    all_buttons = self.driver.find_elements(By.TAG_NAME, "button")
+                    self.logger.info(f"Found {len(all_buttons)} buttons on page")
+                    for i, btn in enumerate(all_buttons[:10]):  # Log first 10 buttons
+                        btn_text = btn.text.strip()
+                        if btn_text:
+                            self.logger.info(f"Button {i+1}: '{btn_text}'")
+                except:
+                    pass
+                
                 add_to_cart_button = None
-                for selector in add_to_cart_selectors:
+                for i, selector in enumerate(add_to_cart_selectors):
                     try:
+                        self.logger.info(f"Trying selector {i+1}: {selector}")
                         add_to_cart_button = self.wait.until(EC.element_to_be_clickable((By.XPATH, selector)))
+                        self.logger.info(f"Found button with selector {i+1}: {add_to_cart_button.text}")
                         break
                     except TimeoutException:
+                        self.logger.info(f"Selector {i+1} failed - no match")
                         continue
                         
                 if not add_to_cart_button:
-                    self.logger.error("Could not find Add to Cart button")
+                    # Fallback: Try to find any button with "cart" in text (case-insensitive)
+                    try:
+                        self.logger.info("Trying fallback: any button with 'cart' in text")
+                        fallback_selector = "//button[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'cart') and not(contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'buy'))]"
+                        add_to_cart_button = self.wait.until(EC.element_to_be_clickable((By.XPATH, fallback_selector)))
+                        self.logger.info(f"Fallback found button: {add_to_cart_button.text}")
+                    except:
+                        pass
+                
+                if not add_to_cart_button:
+                    self.logger.error("Could not find Add to Cart button with any selector")
                     continue
                     
                 add_to_cart_button.click()
