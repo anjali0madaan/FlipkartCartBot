@@ -130,13 +130,9 @@ class FlipkartControlPanel {
     }
     
     startAutoRefresh() {
-        // Refresh sessions every 10 seconds to reduce server load
-        this.refreshInterval = setInterval(() => {
-            // Only refresh if tab is visible to prevent excessive requests
-            if (!document.hidden) {
-                this.loadSessions();
-            }
-        }, 10000);
+        // Removed excessive polling - sessions will refresh only on user actions
+        // Use manual refresh button or event-driven updates instead
+        console.log('Auto-refresh disabled - using event-driven updates');
     }
     
     async loadConfig() {
@@ -230,7 +226,10 @@ class FlipkartControlPanel {
     
     async loadSessions() {
         try {
-            this.setConnectionStatus('connecting');
+            // Only show connecting status for manual refreshes, not automatic ones
+            if (!this.isAutomaticRefresh) {
+                this.setConnectionStatus('connecting');
+            }
             
             const response = await fetch('/api/sessions');
             const data = await response.json();
@@ -379,7 +378,8 @@ class FlipkartControlPanel {
             
             if (data.status === 'success') {
                 this.showToast(`Session ${sessionId} started successfully!`, 'success');
-                this.loadSessions(); // Refresh sessions
+                // Refresh sessions only after successful action
+                setTimeout(() => this.loadSessions(), 1000);
             } else {
                 throw new Error(data.message);
             }
@@ -411,7 +411,8 @@ class FlipkartControlPanel {
             
             if (data.status === 'success') {
                 this.showToast(`Session ${sessionId} stopped successfully!`, 'success');
-                this.loadSessions(); // Refresh sessions
+                // Refresh sessions only after successful action
+                setTimeout(() => this.loadSessions(), 1000);
             } else {
                 throw new Error(data.message);
             }
@@ -448,7 +449,8 @@ class FlipkartControlPanel {
                     this.showToast(`${data.failed_sessions.length} sessions failed to start`, 'warning');
                 }
                 
-                this.loadSessions(); // Refresh sessions
+                // Refresh sessions only after successful action
+                setTimeout(() => this.loadSessions(), 1000);
             } else {
                 throw new Error(data.message);
             }
@@ -481,7 +483,8 @@ class FlipkartControlPanel {
             if (data.status === 'success') {
                 this.showToast(`Sequential execution started for ${data.total_sessions} sessions!`, 'success');
                 this.showToast('Sessions will run one after another', 'info');
-                this.loadSessions(); // Refresh sessions
+                // Refresh sessions only after successful action
+                setTimeout(() => this.loadSessions(), 1000);
             } else {
                 throw new Error(data.message);
             }
@@ -513,7 +516,8 @@ class FlipkartControlPanel {
             
             if (data.status === 'success') {
                 this.showToast(`Stopped ${data.stopped_sessions.length} sessions successfully!`, 'success');
-                this.loadSessions(); // Refresh sessions
+                // Refresh sessions only after successful action
+                setTimeout(() => this.loadSessions(), 1000);
             } else {
                 throw new Error(data.message);
             }
