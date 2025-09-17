@@ -25,5 +25,14 @@
     "brand": "Apple",
     "sort_by": "price_low_to_high",
     "condition": "new"
+  },
+  "ultra_fast_mode": {
+    "enabled": true,
+    "skip_login_popup_check": true,
+    "skip_brand_filtering": true,
+    "skip_cart_verification": true,
+    "first_product_only": true,
+    "single_attempt_add_to_cart": true,
+    "max_wait_time": 2
   }
 }
