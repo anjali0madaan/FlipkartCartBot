@@ -1,14 +1,14 @@
 {
   "search_settings": {
     "product_name": "iPhone",
-    "max_price": 999999,
+    "search_query": "iPhone 14 128GB",
     "min_price": 1,
-    "search_query": "iPhone 14 128GB"
+    "max_price": 999999
   },
   "automation_settings": {
     "wait_time": 3,
     "max_retries": 3,
-    "headless_mode": false,
+    "headless_mode": true,
     "page_load_timeout": 30
   },
   "user_credentials": {
