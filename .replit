@@ -1,4 +1,4 @@
-modules = ["python-3.11", "nodejs-20", "web", "postgresql-16"]
+modules = ["python-3.11", "nodejs-20", "web"]
 [agent]
 expertMode = true
 integrations = ["python_database:1.0.0"]
@@ -23,18 +23,22 @@ args = "Flask Web Control Panel"
 name = "Flask Web Control Panel"
 author = "agent"
 
-[workflows.workflow.metadata]
-outputType = "webview"
-
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "uv run python app.py"
 waitForPort = 5000
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[ports]]
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 40469
+externalPort = 3000
+
 [deployment]
 deploymentTarget = "autoscale"
-run = ["uv", "run", "gunicorn", "--bind", "0.0.0.0:5000", "--worker-class", "gthread", "--workers", "2", "--threads", "4", "--timeout", "120", "--keep-alive", "2", "--reuse-port", "app:app"]
+run = ["uv", "run", "gunicorn", "--bind", "0.0.0.0:5000", "--reuse-port", "app:app"]
