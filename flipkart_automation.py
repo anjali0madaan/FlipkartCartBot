@@ -877,7 +877,161 @@ class FlipkartAutomation:
                     self.logger.info("WebDriver closed")
                 except Exception as e:
                     self.logger.warning(f"Error closing WebDriver: {str(e)}")
+    
+    def is_ultra_fast_mode(self) -> bool:
+        """Check if ultra-fast mode is enabled."""
+        return self.config.get("ultra_fast_mode", {}).get("enabled", False)
+    
+    def search_first_product_ultra_fast(self, search_query: str) -> Optional[Dict]:
+        """Ultra-fast search: Find first product only, no filtering."""
+        try:
+            if not self.driver or not self.wait:
+                raise ValueError("WebDriver not initialized")
+            
+            self.logger.info(f"ULTRA-FAST: Searching for first product: {search_query}")
+            
+            # Navigate directly to search results or use search
+            direct_url = self.config["search_settings"].get("direct_search_url")
+            
+            if direct_url:
+                self.driver.get(direct_url)
+                time.sleep(1)  # Minimal wait
+            else:
+                # Quick search without extensive waiting
+                search_box = self.driver.find_element(By.XPATH, "//input[@name='q']")
+                search_box.clear()
+                search_box.send_keys(search_query)
+                search_button = self.driver.find_element(By.XPATH, "//button[@type='submit']")
+                search_button.click()
+                time.sleep(2)  # Minimal wait for results
+            
+            # Find first product immediately - no extensive searching
+            product_selectors = [
+                "//div[@data-id]//a[contains(@href, '/p/')]",
+                "//div[contains(@class, '_13oc-S')]//a[contains(@href, '/p/')]",
+                "//div[contains(@class, '_1AtVbE')]//a[contains(@href, '/p/')]"
+            ]
+            
+            for selector in product_selectors:
+                try:
+                    first_product_link = self.driver.find_element(By.XPATH, selector)
+                    product_url = first_product_link.get_attribute('href')
+                    if product_url:
+                        # Get minimal product info
+                        try:
+                            product_title = first_product_link.find_element(By.XPATH, ".//div[contains(@class, '_4rR01T')] | .//a").text
+                        except:
+                            product_title = "iPhone Product"
+                        
+                        product = {
+                            'title': product_title,
+                            'url': product_url,
+                            'price': '0'  # Skip price extraction for speed
+                        }
+                        self.logger.info(f"ULTRA-FAST: Found first product: {product['title']}")
+                        return product
+                except:
+                    continue
+                    
+            self.logger.error("ULTRA-FAST: No product found")
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"ULTRA-FAST search failed: {str(e)}")
+            return None
+    
+    def add_to_cart_ultra_fast(self, product: Dict) -> bool:
+        """Ultra-fast add to cart: Single attempt, no verification."""
+        try:
+            if not self.driver:
+                raise ValueError("WebDriver not initialized")
+            
+            self.logger.info(f"ULTRA-FAST: Adding to cart: {product['title']}")
+            
+            # Navigate directly to product page
+            self.driver.get(product['url'])
+            time.sleep(1)  # Minimal wait for page load
+            
+            # Find add to cart button with single attempt
+            add_to_cart_selectors = [
+                "//button[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'cart') and not(contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'buy'))]",
+                "//button[contains(text(), 'ADD TO CART')]",
+                "//button[contains(text(), 'Add to Cart')]"
+            ]
+            
+            for selector in add_to_cart_selectors:
+                try:
+                    add_to_cart_button = self.driver.find_element(By.XPATH, selector)
+                    add_to_cart_button.click()
+                    self.logger.info(f"ULTRA-FAST: Clicked add to cart for: {product['title']}")
+                    return True
+                except:
+                    continue
+                    
+            self.logger.error("ULTRA-FAST: Could not find add to cart button")
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"ULTRA-FAST: Add to cart failed: {str(e)}")
+            return False
+    
+    def run_ultra_fast_automation(self) -> bool:
+        """Run ultra-fast automation: 2-3 second target time."""
+        start_time = time.time()
+        
+        try:
+            if not self.is_ultra_fast_mode():
+                self.logger.info("Ultra-fast mode not enabled, using regular automation")
+                return self.run_automation()
+            
+            self.logger.info("🚀 STARTING ULTRA-FAST AUTOMATION MODE")
+            
+            # Skip all setup delays and checks
+            if not self.driver:
+                self.setup_driver()
+            
+            # Navigate to Flipkart (skip login popup checks)
+            self.navigate_to_flipkart()
+            
+            # Search for first product only (skip filtering)
+            search_query = self.config["search_settings"]["search_query"]
+            product = self.search_first_product_ultra_fast(search_query)
+            
+            if not product:
+                self.logger.error("ULTRA-FAST: No product found")
+                return False
+            
+            # Add to cart immediately (skip verification)
+            success = self.add_to_cart_ultra_fast(product)
+            
+            elapsed_time = time.time() - start_time
+            self.logger.info(f"🚀 ULTRA-FAST AUTOMATION COMPLETED in {elapsed_time:.2f} seconds")
+            
+            if success:
+                self.logger.info(f"✅ ULTRA-FAST: Successfully added {product['title']} to cart")
+            else:
+                self.logger.error("❌ ULTRA-FAST: Failed to add product to cart")
+            
+            return success
+            
+        except Exception as e:
+            elapsed_time = time.time() - start_time
+            self.logger.error(f"ULTRA-FAST automation failed after {elapsed_time:.2f}s: {str(e)}")
+            return False
+        finally:
+            if self.driver:
+                try:
+                    self.driver.quit()
+                    self.logger.info("WebDriver closed")
+                except:
+                    pass
+    
+    def run(self) -> bool:
+        """Main entry point that chooses between ultra-fast and regular automation."""
+        if self.is_ultra_fast_mode():
+            return self.run_ultra_fast_automation()
+        return self.run_automation()
 
 if __name__ == "__main__":
     automation = FlipkartAutomation()
-    automation.run_automation()
+    automation.run()
