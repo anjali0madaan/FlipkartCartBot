@@ -1,11 +1,11 @@
-modules = ["python-3.11"]
+modules = ["python-3.11", "nodejs-20", "web"]
 [agent]
 expertMode = true
 integrations = ["python_database:1.0.0"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["chromedriver", "chromium", "geckodriver"]
+packages = ["chromedriver", "chromium", "geckodriver", "openssl", "postgresql"]
 
 [workflows]
 runButton = "Project"
@@ -98,3 +98,7 @@ externalPort = 80
 [[ports]]
 localPort = 43149
 externalPort = 3000
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
