@@ -159,6 +159,7 @@ class FlipkartControlPanel {
         const sortBy = document.getElementById('sort-by');
         const headlessMode = document.getElementById('headless-mode');
         const saleDetection = document.getElementById('sale-detection');
+        const ultraFastMode = document.getElementById('ultra-fast-mode');
         
         if (searchQuery) searchQuery.value = this.config.search_settings?.search_query || '';
         if (minPrice) minPrice.value = this.config.search_settings?.min_price || 1;
@@ -167,6 +168,7 @@ class FlipkartControlPanel {
         if (sortBy) sortBy.value = this.config.filters?.sort_by || 'price_low_to_high';
         if (headlessMode) headlessMode.checked = this.config.automation_settings?.headless_mode || false;
         if (saleDetection) saleDetection.checked = this.config.sale_settings?.enable_sale_detection || false;
+        if (ultraFastMode) ultraFastMode.checked = this.config.ultra_fast_mode?.enabled || false;
     }
     
     async saveConfig() {
@@ -199,6 +201,15 @@ class FlipkartControlPanel {
                     brand: document.getElementById('brand-filter')?.value || '',
                     sort_by: document.getElementById('sort-by')?.value || 'price_low_to_high',
                     condition: "new"
+                },
+                ultra_fast_mode: {
+                    enabled: document.getElementById('ultra-fast-mode')?.checked || false,
+                    skip_login_popup_check: true,
+                    skip_brand_filtering: true,
+                    skip_cart_verification: true,
+                    first_product_only: true,
+                    single_attempt_add_to_cart: true,
+                    max_wait_time: 2
                 }
             };
             
