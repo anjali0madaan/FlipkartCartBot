@@ -1,8 +1,14 @@
 import os
+from werkzeug.middleware.proxy_fix import ProxyFix
 from web_control_panel import app
 
 # Configure Flask to work in Replit environment  
-app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-this")
+app.secret_key = os.environ.get("SESSION_SECRET")
+if not app.secret_key:
+    raise ValueError("SESSION_SECRET environment variable must be set")
+
+# Configure proxy fix for Replit's reverse proxy
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Configure for Replit's proxy environment - allow all hosts
 app.config.update(
