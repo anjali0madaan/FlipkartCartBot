@@ -297,8 +297,9 @@ def sequential_worker():
             # Timeout waiting for next session, continue loop
             continue
         except Exception as e:
-            # Check if session_id is defined before using it
-            if 'session_id' in locals():
+            # Ensure we have a session_id to work with
+            session_id = locals().get('session_id')
+            if session_id:
                 session_status[session_id] = 'error'
                 if session_id in session_processes:
                     del session_processes[session_id]
@@ -473,12 +474,11 @@ def start_all_sessions():
                     started_sessions.append(session_id)
                     
                 except Exception as e:
-                    # Ensure session_id is available before using it
-                    if 'session_id' in locals():
-                        failed_sessions.append({'session': session_id, 'error': str(e)})
-                        session_status[session_id] = 'error'
-                    else:
-                        failed_sessions.append({'session': 'unknown', 'error': str(e)})
+                    # Get session_id safely from current scope
+                    current_session_id = locals().get('session_id', session.get('id', 'unknown'))
+                    failed_sessions.append({'session': current_session_id, 'error': str(e)})
+                    if current_session_id != 'unknown':
+                        session_status[current_session_id] = 'error'
         
         return jsonify({
             'status': 'success',
