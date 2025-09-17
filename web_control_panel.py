@@ -20,7 +20,13 @@ import queue
 from typing import Dict, List, Optional
 
 app = Flask(__name__)
-CORS(app)
+
+# Configure CORS more securely - only allow same-origin requests in production
+if os.environ.get('FLASK_ENV') == 'development':
+    CORS(app)  # Allow all origins in development
+else:
+    # In production, restrict CORS to specific origins or disable completely
+    CORS(app, origins=[])
 
 # Global error handlers to ensure JSON responses
 @app.errorhandler(404)
