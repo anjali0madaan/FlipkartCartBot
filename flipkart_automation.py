@@ -49,35 +49,30 @@ class FlipkartAutomation:
         """Build Chrome options with consistent settings."""
         chrome_options = Options()
         
-        # Add session profile if provided - create unique temp copy to avoid locking
-        if profile_path:
-            import shutil
-            import time
-            
-            # Create unique temporary profile directory
-            timestamp = int(time.time() * 1000)  # milliseconds for uniqueness
-            temp_profile = f"{profile_path}_temp_{timestamp}"
-            
-            try:
-                # Copy profile to temporary location to avoid "directory in use" error
-                if os.path.exists(profile_path):
-                    shutil.copytree(profile_path, temp_profile, dirs_exist_ok=True)
-                    chrome_options.add_argument(f"--user-data-dir={temp_profile}")
-                    self.logger.info(f"Using temporary profile copy: {temp_profile}")
-                else:
-                    self.logger.warning(f"Original profile not found: {profile_path}")
-            except Exception as e:
-                self.logger.warning(f"Failed to copy profile, using original: {e}")
-                chrome_options.add_argument(f"--user-data-dir={profile_path}")
+        # Create a completely fresh temporary directory for each session to avoid conflicts
+        temp_profile = tempfile.mkdtemp(prefix="chrome_profile_")
+        chrome_options.add_argument(f"--user-data-dir={temp_profile}")
+        self.logger.info(f"Using fresh temporary profile: {temp_profile}")
         
-        # Standard options for automation
+        # If we had a session profile, we would need to copy key session data
+        # For now, we'll use fresh profiles to avoid Chrome conflicts
+        if profile_path:
+            self.logger.info(f"Note: Would use session profile {profile_path}, but using fresh profile to avoid conflicts")
+        
+        # Essential Chrome options for automation in Replit environment
         chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-dev-shm-usage") 
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--disable-web-security")
         chrome_options.add_argument("--disable-features=VizDisplayCompositor")
+        chrome_options.add_argument("--disable-background-timer-throttling")
+        chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+        chrome_options.add_argument("--disable-renderer-backgrounding")
+        chrome_options.add_argument("--disable-field-trial-config")
+        chrome_options.add_argument("--disable-ipc-flooding-protection")
         chrome_options.add_argument("--window-size=1920,1080")
+        chrome_options.add_argument("--remote-debugging-port=9222")
         chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
         
         # Use modern headless mode for better compatibility
