@@ -548,8 +548,11 @@ class FlipkartControlPanel {
         const modal = new bootstrap.Modal(document.getElementById('logModal'));
         document.getElementById('current-log-session').textContent = sessionId;
         
-        // Clear existing logs
-        this.clearLogs();
+        // Clear only the UI logs container (don't clear server logs)
+        const logContainer = document.getElementById('log-container');
+        if (logContainer) {
+            logContainer.innerHTML = '';
+        }
         
         // Start log streaming
         this.startLogStreaming(sessionId);
