@@ -30,7 +30,7 @@ class UserSession(Base):
     
     def is_valid(self):
         """Check if session is still valid and not expired."""
-        return bool(self.session_valid) and self.expires_at > datetime.utcnow()
+        return bool(self.session_valid is True) and self.expires_at > datetime.utcnow()
     
     def update_last_used(self):
         """Update the last used timestamp."""
