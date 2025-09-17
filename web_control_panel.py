@@ -678,16 +678,8 @@ def get_session_logs(session_id):
             except Exception:
                 pass
         
-        # Fallback to shared log file if session-specific file doesn't exist
-        if not logs:
-            fallback_log_file = f"flipkart_automation.log"
-            if os.path.exists(fallback_log_file):
-                try:
-                    with open(fallback_log_file, 'r') as f:
-                        file_logs = f.readlines()[-50:]  # Get last 50 lines
-                        logs.extend([line.strip() for line in file_logs if line.strip()])
-                except Exception:
-                    pass
+        # Don't show logs from shared file if session hasn't been started
+        # Only show logs for sessions that have actually run
         
         return jsonify({
             'status': 'success',
@@ -740,6 +732,43 @@ def stream_logs(session_id):
             'Connection': 'keep-alive',
         }
     )
+
+@app.route('/api/logs/<session_id>/clear', methods=['POST'])
+def clear_session_logs(session_id):
+    """Clear logs for a specific session."""
+    try:
+        # Clear in-memory log queue
+        if session_id in session_logs:
+            # Clear the queue
+            while not session_logs[session_id].empty():
+                try:
+                    session_logs[session_id].get_nowait()
+                except queue.Empty:
+                    break
+        
+        # Clear session-specific log file
+        session_log_file = f"session_{session_id}_automation.log"
+        if os.path.exists(session_log_file):
+            try:
+                with open(session_log_file, 'w') as f:
+                    f.write("")  # Clear the file content
+            except Exception as e:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Failed to clear log file: {str(e)}'
+                }), 500
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Logs cleared for session {session_id}',
+            'session_id': session_id
+        })
+    
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to clear logs for session {session_id}: {str(e)}'
+        }), 500
 
 def monitor_session_logs(session_id: str, process: subprocess.Popen):
     """Monitor logs from a session process."""

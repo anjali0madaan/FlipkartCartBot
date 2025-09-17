@@ -643,10 +643,36 @@ class FlipkartControlPanel {
         }
     }
     
-    clearLogs() {
-        const logContainer = document.getElementById('log-container');
-        if (logContainer) {
-            logContainer.innerHTML = '';
+    async clearLogs() {
+        try {
+            // Get the current session ID from the modal
+            const currentSessionElement = document.getElementById('current-log-session');
+            const sessionId = currentSessionElement ? currentSessionElement.textContent : null;
+            
+            if (sessionId) {
+                // Clear logs on server
+                const response = await fetch(`/api/logs/${sessionId}/clear`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    this.showToast(`Logs cleared for session ${sessionId}`, 'success');
+                } else {
+                    console.warn('Failed to clear server logs:', data.message);
+                }
+            }
+            
+            // Clear logs in UI
+            const logContainer = document.getElementById('log-container');
+            if (logContainer) {
+                logContainer.innerHTML = '';
+            }
+            
+        } catch (error) {
+            console.error('Failed to clear logs:', error);
+            this.showToast('Failed to clear logs: ' + error.message, 'error');
         }
     }
     
