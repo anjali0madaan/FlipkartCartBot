@@ -34,16 +34,50 @@ class FlipkartAutomation:
             raise ValueError(f"Invalid JSON in configuration file {config_file}")
     
     def setup_logging(self):
-        """Setup logging for the automation."""
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler('flipkart_automation.log'),
-                logging.StreamHandler()
-            ]
-        )
-        self.logger = logging.getLogger(__name__)
+        """Setup logging for the automation with session-specific log files."""
+        from datetime import datetime
+        
+        # Create session-specific log file name
+        if self.use_session:
+            log_filename = f'session_{self.use_session}_automation.log'
+        else:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            log_filename = f'automation_{timestamp}.log'
+        
+        # Create a unique logger name to avoid conflicts
+        logger_name = f"FlipkartAutomation_{self.use_session or 'default'}"
+        
+        # Get or create logger for this session
+        self.logger = logging.getLogger(logger_name)
+        
+        # Clear any existing handlers to avoid duplicates
+        if self.logger.handlers:
+            self.logger.handlers.clear()
+            
+        # Set logging level
+        self.logger.setLevel(logging.INFO)
+        
+        # Create file handler for session-specific log
+        file_handler = logging.FileHandler(log_filename)
+        file_handler.setLevel(logging.INFO)
+        
+        # Create console handler
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        
+        # Create formatter
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(formatter)
+        console_handler.setFormatter(formatter)
+        
+        # Add handlers to logger
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(console_handler)
+        
+        # Prevent propagation to avoid duplicate logs
+        self.logger.propagate = False
+        
+        self.logger.info(f"Session {self.use_session or 'default'} logging initialized to: {log_filename}")
     
     def _build_chrome_options(self, profile_path: Optional[str] = None) -> Options:
         """Build Chrome options with consistent settings."""
