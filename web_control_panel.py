@@ -668,15 +668,26 @@ def get_session_logs(session_id):
             
             logs = temp_logs
         
-        # Also check for log files
-        log_file = f"flipkart_automation.log"
-        if os.path.exists(log_file):
+        # Also check for session-specific log files
+        session_log_file = f"session_{session_id}_automation.log"
+        if os.path.exists(session_log_file):
             try:
-                with open(log_file, 'r') as f:
+                with open(session_log_file, 'r') as f:
                     file_logs = f.readlines()[-50:]  # Get last 50 lines
                     logs.extend([line.strip() for line in file_logs if line.strip()])
             except Exception:
                 pass
+        
+        # Fallback to shared log file if session-specific file doesn't exist
+        if not logs:
+            fallback_log_file = f"flipkart_automation.log"
+            if os.path.exists(fallback_log_file):
+                try:
+                    with open(fallback_log_file, 'r') as f:
+                        file_logs = f.readlines()[-50:]  # Get last 50 lines
+                        logs.extend([line.strip() for line in file_logs if line.strip()])
+                except Exception:
+                    pass
         
         return jsonify({
             'status': 'success',
