@@ -764,7 +764,7 @@ class FlipkartAutomation:
                 # Wait for page to load
                 self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
                 
-                # Find and click "Add to Cart" button - working selectors
+                # Find and click "Add to Cart" button - enhanced selectors
                 add_to_cart_selectors = [
                     # Primary working selector (case-insensitive cart detection, excluding buy)
                     "//button[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'cart') and not(contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'buy'))]",
@@ -773,7 +773,16 @@ class FlipkartAutomation:
                     "//button[contains(text(), 'Add to Cart')]",
                     "//button[contains(text(), 'Go to Cart')]",  # Already in cart scenario
                     "//button[@data-testid='add-to-cart']",
-                    "//input[@value='ADD TO CART']"
+                    "//input[@value='ADD TO CART']",
+                    # Additional selectors for edge cases
+                    "//button[contains(text(), 'Choose Options')]",  # Variant selection needed
+                    "//button[contains(text(), 'Select Options')]",
+                    "//button[contains(text(), 'Add Item')]",
+                    "//span[contains(text(), 'ADD TO CART')]/parent::button",
+                    "//div[contains(text(), 'ADD TO CART')]/parent::button",
+                    # Class-based selectors
+                    "//button[contains(@class, 'add-to-cart')]",
+                    "//button[contains(@class, '_2KpZ6l')]"  # Common Flipkart cart button class
                 ]
                 
                 add_to_cart_button = None
@@ -786,7 +795,13 @@ class FlipkartAutomation:
                         continue
                         
                 if not add_to_cart_button:
-                    self.logger.error("Could not find Add to Cart button")
+                    # Debug: log available buttons to help troubleshoot
+                    try:
+                        all_buttons = self.driver.find_elements(By.TAG_NAME, "button")
+                        button_texts = [btn.text.strip() for btn in all_buttons if btn.text.strip()]
+                        self.logger.error(f"Could not find Add to Cart button. Available buttons: {button_texts[:10]}")  # Log first 10 buttons
+                    except:
+                        self.logger.error("Could not find Add to Cart button and failed to debug available buttons")
                     continue
                     
                 add_to_cart_button.click()
@@ -1013,11 +1028,14 @@ class FlipkartAutomation:
             self.driver.get(product['url'])
             time.sleep(1)  # Minimal wait for page load
             
-            # Find add to cart button with single attempt
+            # Find add to cart button with single attempt - enhanced selectors
             add_to_cart_selectors = [
                 "//button[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'cart') and not(contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'buy'))]",
                 "//button[contains(text(), 'ADD TO CART')]",
-                "//button[contains(text(), 'Add to Cart')]"
+                "//button[contains(text(), 'Add to Cart')]",
+                "//button[contains(text(), 'Choose Options')]",
+                "//button[contains(text(), 'Select Options')]",
+                "//button[contains(@class, '_2KpZ6l')]"
             ]
             
             for selector in add_to_cart_selectors:
@@ -1029,7 +1047,13 @@ class FlipkartAutomation:
                 except:
                     continue
                     
-            self.logger.error("ULTRA-FAST: Could not find add to cart button")
+            # Debug: log available buttons for ultra-fast mode
+            try:
+                all_buttons = self.driver.find_elements(By.TAG_NAME, "button")
+                button_texts = [btn.text.strip() for btn in all_buttons if btn.text.strip()]
+                self.logger.error(f"ULTRA-FAST: Could not find add to cart button. Available buttons: {button_texts[:10]}")
+            except:
+                self.logger.error("ULTRA-FAST: Could not find add to cart button and failed to debug available buttons")
             return False
             
         except Exception as e:
