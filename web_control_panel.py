@@ -205,8 +205,7 @@ def validate_flipkart_login(profile_dir: str, session_id: str) -> bool:
                 SELECT name, value, host_key 
                 FROM cookies 
                 WHERE host_key LIKE '%flipkart.com%' 
-                AND name = ? 
-                AND length(value) > 0
+                AND name = ?
             """, (cookie_name,))
             
             results = cursor.fetchall()
@@ -219,7 +218,6 @@ def validate_flipkart_login(profile_dir: str, session_id: str) -> bool:
             SELECT COUNT(*) 
             FROM cookies 
             WHERE host_key LIKE '%flipkart.com%'
-            AND length(value) > 0
         """)
         
         flipkart_cookie_count = cursor.fetchone()[0]
