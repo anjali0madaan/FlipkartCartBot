@@ -49,15 +49,20 @@ class FlipkartAutomation:
         """Build Chrome options with consistent settings."""
         chrome_options = Options()
         
-        # Create a completely fresh temporary directory for each session to avoid conflicts
+        # Create temporary profile directory for this session
         temp_profile = tempfile.mkdtemp(prefix="chrome_profile_")
-        chrome_options.add_argument(f"--user-data-dir={temp_profile}")
-        self.logger.info(f"Using fresh temporary profile: {temp_profile}")
         
-        # If we had a session profile, we would need to copy key session data
-        # For now, we'll use fresh profiles to avoid Chrome conflicts
-        if profile_path:
-            self.logger.info(f"Note: Would use session profile {profile_path}, but using fresh profile to avoid conflicts")
+        # If we have a saved session profile, copy essential data to avoid conflicts
+        if profile_path and os.path.exists(profile_path):
+            try:
+                self._copy_session_data(profile_path, temp_profile)
+                self.logger.info(f"Using session profile data in temporary directory: {temp_profile}")
+            except Exception as e:
+                self.logger.warning(f"Failed to copy session data: {e}, using fresh profile")
+        else:
+            self.logger.info(f"Using fresh temporary profile: {temp_profile}")
+        
+        chrome_options.add_argument(f"--user-data-dir={temp_profile}")
         
         # Essential Chrome options for automation in Replit environment
         chrome_options.add_argument("--no-sandbox")
@@ -80,6 +85,54 @@ class FlipkartAutomation:
             chrome_options.add_argument("--headless=new")
             
         return chrome_options
+    
+    def _copy_session_data(self, source_profile: str, dest_profile: str):
+        """Copy essential session data while avoiding Chrome lock files."""
+        import shutil
+        
+        # Create Default directory structure in destination
+        dest_default = os.path.join(dest_profile, "Default")
+        source_default = os.path.join(source_profile, "Default")
+        
+        os.makedirs(dest_default, exist_ok=True)
+        
+        # Files to copy for session persistence (cookies, login data, etc.)
+        essential_files = [
+            "Cookies",
+            "Cookies-journal", 
+            "Login Data",
+            "Login Data-journal",
+            "Web Data",
+            "Web Data-journal",
+            "Local Storage",
+            "Session Storage",
+            "Preferences"
+        ]
+        
+        # Copy essential session files
+        for file_name in essential_files:
+            source_file = os.path.join(source_default, file_name)
+            dest_file = os.path.join(dest_default, file_name)
+            
+            try:
+                if os.path.exists(source_file):
+                    if os.path.isfile(source_file):
+                        shutil.copy2(source_file, dest_file)
+                    elif os.path.isdir(source_file):
+                        shutil.copytree(source_file, dest_file, dirs_exist_ok=True)
+                    self.logger.info(f"Copied session data: {file_name}")
+            except Exception as e:
+                self.logger.warning(f"Could not copy {file_name}: {e}")
+        
+        # Copy Local State file from root profile directory  
+        local_state_src = os.path.join(source_profile, "Local State")
+        local_state_dest = os.path.join(dest_profile, "Local State")
+        try:
+            if os.path.exists(local_state_src):
+                shutil.copy2(local_state_src, local_state_dest)
+                self.logger.info("Copied Local State")
+        except Exception as e:
+            self.logger.warning(f"Could not copy Local State: {e}")
     
     def setup_driver(self) -> webdriver.Chrome:
         """Setup Chrome WebDriver with appropriate options and session persistence."""
