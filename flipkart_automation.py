@@ -77,7 +77,13 @@ class FlipkartAutomation:
         chrome_options.add_argument("--disable-field-trial-config")
         chrome_options.add_argument("--disable-ipc-flooding-protection")
         chrome_options.add_argument("--window-size=1920,1080")
-        chrome_options.add_argument("--remote-debugging-port=9222")
+        
+        # Use unique remote debugging port for each instance to avoid conflicts in parallel execution
+        import random
+        unique_debug_port = random.randint(9223, 9300)
+        chrome_options.add_argument(f"--remote-debugging-port={unique_debug_port}")
+        self.logger.info(f"Using remote debugging port: {unique_debug_port}")
+        
         chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
         
         # Use modern headless mode for better compatibility
