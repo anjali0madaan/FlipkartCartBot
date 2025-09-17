@@ -49,14 +49,34 @@ class FlipkartAutomation:
         """Build Chrome options with consistent settings."""
         chrome_options = Options()
         
-        # Add session profile if provided
+        # Add session profile if provided - create unique temp copy to avoid locking
         if profile_path:
-            chrome_options.add_argument(f"--user-data-dir={profile_path}")
+            import shutil
+            import time
+            
+            # Create unique temporary profile directory
+            timestamp = int(time.time() * 1000)  # milliseconds for uniqueness
+            temp_profile = f"{profile_path}_temp_{timestamp}"
+            
+            try:
+                # Copy profile to temporary location to avoid "directory in use" error
+                if os.path.exists(profile_path):
+                    shutil.copytree(profile_path, temp_profile, dirs_exist_ok=True)
+                    chrome_options.add_argument(f"--user-data-dir={temp_profile}")
+                    self.logger.info(f"Using temporary profile copy: {temp_profile}")
+                else:
+                    self.logger.warning(f"Original profile not found: {profile_path}")
+            except Exception as e:
+                self.logger.warning(f"Failed to copy profile, using original: {e}")
+                chrome_options.add_argument(f"--user-data-dir={profile_path}")
         
         # Standard options for automation
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--disable-web-security")
+        chrome_options.add_argument("--disable-features=VizDisplayCompositor")
         chrome_options.add_argument("--window-size=1920,1080")
         chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
         
