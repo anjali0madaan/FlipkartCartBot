@@ -1,0 +1,37 @@
+] 2025-09-17 20:44:01,625 - INFO - Chrome WebDriver initialized with session persistence
+[2:14:05 AM] 2025-09-17 20:44:01,625 - INFO - Navigating to Flipkart...
+[8:44:18 PM] 2025-09-17 20:44:18,433 - INFO - No login popup found
+[8:44:18 PM] 2025-09-17 20:44:18,433 - INFO - Searching for: iPhone 14 128GB
+[8:44:30 PM] 2025-09-17 20:44:30,712 - WARNING - Could not find brand filter for: Apple
+[8:44:40 PM] 2025-09-17 20:44:40,477 - INFO - Price range filter inputs not found, using client-side filtering
+[8:44:40 PM] 2025-09-17 20:44:40,496 - INFO - Found 24 product containers using selector: //div[@data-id]
+[8:44:40 PM] 2025-09-17 20:44:40,496 - INFO - Processing product container 1
+[8:44:41 PM] 2025-09-17 20:44:41,321 - INFO - Found qualifying product: Apple iPhone 14 (Midnight, 128 GB) - ₹51999.0
+[8:44:41 PM] 2025-09-17 20:44:41,321 - INFO - Processing product container 2
+[8:44:42 PM] 2025-09-17 20:44:42,010 - INFO - Found qualifying product: Apple iPhone 14 (Blue, 128 GB) - ₹51999.0
+[8:44:42 PM] 2025-09-17 20:44:42,011 - INFO - Processing product container 3
+[8:44:42 PM] 2025-09-17 20:44:42,671 - INFO - Found qualifying product: Apple iPhone 14 (Starlight, 128 GB) - ₹51999.0
+[8:44:42 PM] 2025-09-17 20:44:42,671 - INFO - Processing product container 4
+[8:44:43 PM] 2025-09-17 20:44:43,480 - INFO - Found qualifying product: Apple iPhone 14 (Yellow, 128 GB) - ₹51999.0
+[8:44:43 PM] 2025-09-17 20:44:43,481 - INFO - Processing product container 5
+[8:44:44 PM] 2025-09-17 20:44:44,080 - INFO - Found qualifying product: Apple iPhone 14 ((PRODUCT)RED, 128 GB) - ₹51999.0
+[8:44:44 PM] 2025-09-17 20:44:44,080 - INFO - Processing product container 6
+[8:44:44 PM] 2025-09-17 20:44:44,760 - INFO - Found qualifying product: Apple iPhone 14 (Purple, 128 GB) - ₹51999.0
+[8:44:44 PM] 2025-09-17 20:44:44,760 - INFO - Processing product container 7
+[8:44:45 PM] 2025-09-17 20:44:45,494 - INFO - Found qualifying product: Apple iPhone 14 Plus (Starlight, 128 GB) - ₹69900.0
+[8:44:45 PM] 2025-09-17 20:44:45,494 - INFO - Processing product container 8
+[8:44:46 PM] 2025-09-17 20:44:46,170 - INFO - Found qualifying product: Apple iPhone 14 Plus (Blue, 128 GB) - ₹69900.0
+[8:44:46 PM] 2025-09-17 20:44:46,170 - INFO - Processing product container 9
+[8:44:46 PM] 2025-09-17 20:44:46,863 - INFO - Found qualifying product: Apple iPhone 14 Plus (Midnight, 128 GB) - ₹69900.0
+[8:44:46 PM] 2025-09-17 20:44:46,863 - INFO - Processing product container 10
+[8:44:47 PM] 2025-09-17 20:44:47,644 - INFO - Found qualifying product: Apple iPhone 14 Plus (Purple, 128 GB) - ₹69900.0
+[8:44:47 PM] 2025-09-17 20:44:47,644 - INFO - Total products found matching criteria: 10
+[8:44:47 PM] 2025-09-17 20:44:47,644 - INFO - Found 10 products matching criteria
+[8:44:47 PM] 2025-09-17 20:44:47,644 - INFO - Processing product 1/1
+[8:44:47 PM] 2025-09-17 20:44:47,645 - INFO - Attempting to add to cart (attempt 1/3): Apple iPhone 14 (Midnight, 128 GB)
+[8:44:49 PM] 2025-09-17 20:44:49,551 - INFO - Found Add to Cart button: ADD TO CART
+[8:45:03 PM] 2025-09-17 20:45:03,447 - INFO - Found 4 items in cart
+[8:45:03 PM] 2025-09-17 20:45:03,447 - INFO - Successfully added to cart: Apple iPhone 14 (Midnight, 128 GB)
+[8:45:03 PM] 2025-09-17 20:45:03,447 - INFO - Successfully added 1 product(s) to cart
+[8:45:03 PM] 2025-09-17 20:45:03,447 - INFO - Automation completed. Added 1 out of 1 products to cart.
+[8:45:03 PM] 2025-09-17 20:45:03,624 - INFO - WebDriver closed

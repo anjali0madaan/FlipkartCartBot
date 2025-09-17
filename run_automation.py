@@ -113,7 +113,7 @@ def main():
         else:
             automation = FlipkartAutomation(args.config)
             
-        success = automation.run_automation()
+        success = automation.run()
         
         if success:
             print("✅ Automation completed successfully!")

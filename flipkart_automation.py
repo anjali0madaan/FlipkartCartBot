@@ -181,7 +181,12 @@ class FlipkartAutomation:
             if self.config["user_credentials"]["email"] and self.config["user_credentials"]["password"]:
                 self.login()
             else:
-                self.close_login_popup()
+                # Check if we should skip login popup check in ultra fast mode
+                ultra_fast_mode = self.config.get("ultra_fast_mode", {})
+                if not ultra_fast_mode.get("skip_login_popup_check", False):
+                    self.close_login_popup()
+                else:
+                    self.logger.info("Skipping login popup check (ultra fast mode)")
                 
         except Exception as e:
             self.logger.error(f"Failed to navigate to Flipkart: {str(e)}")
@@ -238,8 +243,12 @@ class FlipkartAutomation:
                 # Wait for results to load
                 self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[@data-id or contains(@class, '_13oc-S') or contains(@class, '_1AtVbE')]")))
                 
-                # Apply filters from configuration
-                self.apply_filters()
+                # Apply filters from configuration (unless ultra fast mode skips it)
+                ultra_fast_mode = self.config.get("ultra_fast_mode", {})
+                if not ultra_fast_mode.get("skip_brand_filtering", False):
+                    self.apply_filters()
+                else:
+                    self.logger.info("Skipping brand filtering (ultra fast mode)")
             
             return self.extract_product_info()
             
@@ -413,7 +422,15 @@ class FlipkartAutomation:
                 self.logger.error("No product containers found with any selector")
                 return products
             
-            for i, container in enumerate(product_containers[:10]):  # Limit to first 10 products
+            # Check if ultra fast mode is enabled for first product only
+            ultra_fast_mode = self.config.get("ultra_fast_mode", {})
+            if ultra_fast_mode.get("first_product_only", False):
+                product_limit = 1
+                self.logger.info("Ultra fast mode: processing only first product")
+            else:
+                product_limit = 10
+                
+            for i, container in enumerate(product_containers[:product_limit]):
                 try:
                     self.logger.info(f"Processing product container {i+1}")
                     
@@ -734,8 +751,12 @@ class FlipkartAutomation:
                     
                 add_to_cart_button.click()
                 
-                # Verify cart addition with multiple success indicators
-                if self.verify_cart_addition():
+                # Verify cart addition with multiple success indicators (unless ultra fast mode skips it)
+                ultra_fast_mode = self.config.get("ultra_fast_mode", {})
+                if ultra_fast_mode.get("skip_cart_verification", False):
+                    self.logger.info(f"Successfully added to cart (skipped verification - ultra fast mode): {product['title']}")
+                    return True
+                elif self.verify_cart_addition():
                     self.logger.info(f"Successfully added to cart: {product['title']}")
                     return True
                 else:

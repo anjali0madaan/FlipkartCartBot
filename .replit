@@ -35,10 +35,6 @@ waitForPort = 5000
 localPort = 5000
 externalPort = 80
 
-[[ports]]
-localPort = 46799
-externalPort = 3001
-
 [deployment]
 deploymentTarget = "autoscale"
 run = ["uv", "run", "gunicorn", "--bind", "0.0.0.0:5000", "--worker-class", "gthread", "--workers", "2", "--threads", "4", "--timeout", "120", "--keep-alive", "2", "--reuse-port", "app:app"]
